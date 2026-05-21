@@ -11,9 +11,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
+          cache-dependency-path: source apk/package-lock.json
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -30,6 +34,16 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('source apk/android/**/*.gradle*', 'source apk/android/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-
+
       - name: Prebuild & Build APK
         working-directory: source apk
         run: |
@@ -37,14 +51,34 @@ jobs:
           cd android
           ./gradlew assembleRelease
 
-      - name: Upload APK
+      - name: Upload APK artifact to GitHub
         uses: actions/upload-artifact@v4
         with:
           name: Ligat-APK
           path: source apk/android/app/build/outputs/apk/release/*.apk
 
-      - name: Get download URL
-        id: get_url
+      - name: Upload APK to gofile
+        id: gofile
         run: |
           APK_FILE=$(ls source apk/android/app/build/outputs/apk/release/*.apk | head -1)
-          echo "apk=$APK_FILE" >> $GITHUB_OUTPUT
+          echo "Uploading $APK_FILE..."
+          # Get best server
+          SERVER=$(curl -s https://api.gofile.io/servers | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['data']['servers'][0]['name'])")
+          echo "Server: $SERVER"
+          # Upload file
+          RESP=$(curl -s -X POST -F "file=@$APK_FILE" "https://${SERVER}.gofile.io/contents/uploadfile")
+          URL=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['downloadPage'])")
+          echo "Download URL: $URL"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Send WhatsApp notification
+        env:
+          FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
+          WA_TARGET: ${{ secrets.WA_TARGET }}
+          DOWNLOAD_URL: ${{ steps.gofile.outputs.url }}
+        run: |
+          MSG="🧹 *Ligat App Update*\n\nAPK terbaru sudah siap.\n\nDownload: $DOWNLOAD_URL"
+          curl -s -X POST https://api.fonnte.com/send \
+            -H "Authorization: $FONNTE_TOKEN" \
+            -d "target=$WA_TARGET" \
+            -d "message=$MSG"
