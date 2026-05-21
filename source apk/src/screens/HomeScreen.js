@@ -52,6 +52,7 @@ export default function HomeScreen({ navigation }) {
     const [slideIndex, setSlideIndex] = useState(0);
     const [showLogin, setShowLogin] = useState(false);
     const [appSettings, setAppSettings] = useState(null);
+    const [theme, setTheme] = useState(null);
     const [quickMenus, setQuickMenus] = useState([]);
     const slideRef = useRef(null);
 
@@ -75,7 +76,9 @@ export default function HomeScreen({ navigation }) {
                     api.get('/quick-menus'),
                 ]);
                 if (settingsRes.data?.data) {
-                    setAppSettings(settingsRes.data.data);
+                    const d = settingsRes.data.data;
+                    setAppSettings(d);
+                    if (d.theme) setTheme(d.theme);
                 }
                 if (menuRes.data?.data) {
                     const menus = menuRes.data.data.filter(m => m.active);
@@ -284,6 +287,9 @@ export default function HomeScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
+            {theme?.bg_image && (
+                <Image source={{ uri: theme.bg_image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            )}
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
             <ScrollView
                 showsVerticalScrollIndicator={false}

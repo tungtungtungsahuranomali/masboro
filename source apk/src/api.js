@@ -73,3 +73,4 @@ api.interceptors.response.use(
 
 export default api;
 export { API_URL, DEFAULT_API_URL };
+export let THEME = {}; // akan diisi dari /app-settings
