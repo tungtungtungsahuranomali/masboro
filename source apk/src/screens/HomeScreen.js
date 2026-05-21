@@ -61,6 +61,15 @@ export default function HomeScreen({ navigation }) {
     useEffect(() => {
         (async () => {
             try {
+                // Load from cache first
+                const cachedMenus = await AsyncStorage.getItem('quick_menus_cache');
+                if (cachedMenus) {
+                    const parsed = JSON.parse(cachedMenus);
+                    setQuickMenus(parsed.filter(m => m.active));
+                }
+            } catch (e) {}
+
+            try {
                 const [settingsRes, menuRes] = await Promise.all([
                     api.get('/app-settings'),
                     api.get('/quick-menus'),
@@ -69,7 +78,9 @@ export default function HomeScreen({ navigation }) {
                     setAppSettings(settingsRes.data.data);
                 }
                 if (menuRes.data?.data) {
-                    setQuickMenus(menuRes.data.data.filter(m => m.active));
+                    const menus = menuRes.data.data.filter(m => m.active);
+                    setQuickMenus(menus);
+                    AsyncStorage.setItem('quick_menus_cache', JSON.stringify(menus));
                 }
             } catch (e) {}
         })();
@@ -460,6 +471,7 @@ export default function HomeScreen({ navigation }) {
                         {quickMenus.map((menu) => {
                             const needsAuth = menu.require_auth && !isLoggedIn;
                             const iconName = menu.icon || 'ellipse';
+                            const iconColor = needsAuth ? colors.textSecondary : colors.primary;
                             return (
                                 <TouchableOpacity
                                     key={menu.id}
@@ -468,7 +480,11 @@ export default function HomeScreen({ navigation }) {
                                     activeOpacity={0.7}
                                 >
                                     <View style={[styles.quickIcon, { backgroundColor: 'rgba(229,167,27,0.15)' }]}>
-                                        <Ionicons name={iconName} size={24} color={needsAuth ? colors.textSecondary : colors.primary} />
+                                        {menu.image_url ? (
+                                            <Image source={{ uri: menu.image_url }} style={{ width: 28, height: 28, borderRadius: 6 }} />
+                                        ) : (
+                                            <Ionicons name={iconName} size={24} color={iconColor} />
+                                        )}
                                     </View>
                                     <Text style={[styles.quickLabel, needsAuth && { color: colors.textSecondary }]}>
                                         {menu.label}

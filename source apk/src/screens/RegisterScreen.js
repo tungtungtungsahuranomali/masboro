@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import api, { API_URL } from '../api';
 import colors from '../theme';
 
@@ -62,6 +63,7 @@ export default function RegisterScreen({ navigation }) {
     const [inginLainnya, setInginLainnya] = useState(false);
     const [selectedLainnya, setSelectedLainnya] = useState(null);
     const [tanggalPengajuan, setTanggalPengajuan] = useState(new Date().toISOString().split('T')[0]);
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     // Step 6: Persetujuan & Dokumen
     const [agree1, setAgree1] = useState(false);
@@ -264,10 +266,6 @@ export default function RegisterScreen({ navigation }) {
         if (!agree1 || !agree2 || !agree3 || !agree4 || !agree5 || !agree6 || !agree7) {
             return Alert.alert('Peringatan', 'Anda harus menyetujui semua persyaratan.');
         }
-        if (!fotoKtp) return Alert.alert('Peringatan', 'Upload foto KTP.');
-        if (!fotoRumah) return Alert.alert('Peringatan', 'Upload foto rumah.');
-        if (!fotoSelfie) return Alert.alert('Peringatan', 'Upload foto selfie.');
-
         setLoading(true);
         try {
             const formData = new FormData();
@@ -291,17 +289,17 @@ export default function RegisterScreen({ navigation }) {
             if (selectedLainnya) formData.append('paket_lainnya_id', selectedLainnya);
             formData.append('tanggal_pengajuan', tanggalPengajuan);
 
-            formData.append('foto_ktp', {
+            if (fotoKtp) formData.append('foto_ktp', {
                 uri: fotoKtp.uri,
                 type: 'image/jpeg',
                 name: 'ktp.jpg',
             });
-            formData.append('foto_rumah', {
+            if (fotoRumah) formData.append('foto_rumah', {
                 uri: fotoRumah.uri,
                 type: 'image/jpeg',
                 name: 'rumah.jpg',
             });
-            formData.append('foto_selfie', {
+            if (fotoSelfie) formData.append('foto_selfie', {
                 uri: fotoSelfie.uri,
                 type: 'image/jpeg',
                 name: 'selfie.jpg',
@@ -669,9 +667,53 @@ export default function RegisterScreen({ navigation }) {
                 ))}
             </View>
 
-            {renderInput('Tanggal Pengajuan Pasang', tanggalPengajuan, setTanggalPengajuan, {
-                icon: 'calendar-outline', placeholder: 'YYYY-MM-DD',
-            })}
+            {Platform.OS === 'web' ? (
+                <View style={{ marginBottom: 14 }}>
+                    <Text style={styles.stepLabel}>Tanggal Pengajuan Pasang</Text>
+                    <input
+                        type="date"
+                        value={tanggalPengajuan}
+                        onChange={(e) => setTanggalPengajuan(e.target.value)}
+                        style={{
+                            width: '100%', padding: 14, fontSize: 14,
+                            backgroundColor: colors.inputBg, color: colors.text,
+                            border: `1px solid ${colors.border}`, borderRadius: 12,
+                            outline: 'none', fontFamily: 'inherit',
+                        }}
+                    />
+                </View>
+            ) : (
+                <>
+                    <Text style={styles.stepLabel}>Tanggal Pengajuan Pasang</Text>
+                    <TouchableOpacity
+                        style={[styles.inputRow, { marginBottom: 14 }]}
+                        onPress={() => setShowDatePicker(true)}
+                    >
+                        <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} style={{ marginRight: 10 }} />
+                        <Text style={{ color: colors.text, fontSize: 14, flex: 1 }}>
+                            {tanggalPengajuan || 'Pilih tanggal'}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    {showDatePicker && (
+                        <DateTimePicker
+                            value={new Date()}
+                            mode="date"
+                            display="default"
+                            onChange={(event, selectedDate) => {
+                                setShowDatePicker(false);
+                                if (selectedDate) {
+                                    setTanggalPengajuan(
+                                        selectedDate.getFullYear() + '-' +
+                                        String(selectedDate.getMonth()+1).padStart(2,'0') + '-' +
+                                        String(selectedDate.getDate()).padStart(2,'0')
+                                    );
+                                }
+                            }}
+                        />
+                    )}
+                </>
+            )}
 
             <View style={s.navRow}>
                 <TouchableOpacity style={s.prevBtn} onPress={prevStep}>

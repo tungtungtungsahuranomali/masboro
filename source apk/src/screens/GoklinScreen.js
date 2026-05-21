@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-    View, Text, ScrollView, StyleSheet, Dimensions,
+    View, Text, ScrollView, StyleSheet, Dimensions, Modal,
     TouchableOpacity, RefreshControl, Alert, ActivityIndicator,
     StatusBar, Platform, TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import api, { API_URL } from '../api';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme';
@@ -24,49 +28,38 @@ const STATUS_MAP = {
     dibatalkan: { label: 'Dibatalkan', icon: 'close-circle', color: colors.danger },
 };
 
-const generateMapHtml = (lat = -7.250445, lng = 112.768845) => `
+const generateMapHtml = (lat, lng) => `
 <!DOCTYPE html>
-<html>
-<head>
+<html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-* { margin: 0; padding: 0; }
-body { background: #0D0D15; }
-#map { width: 100%; height: 100vh; }
-.leaflet-control-zoom a { background: #1A1A2E; color: #F5F5F5; border-color: #2A2A3E; }
-</style>
-</head>
-<body>
-<div id="map"></div>
-<script>
-var map = L.map('map').setView([${lat}, ${lng}], 15);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap',
-    maxZoom: 19,
-}).addTo(map);
-var marker = L.marker([${lat}, ${lng}], { draggable: true }).addTo(map);
-marker.on('dragend', function(e) {
-    var pos = marker.getLatLng();
-    window.ReactNativeWebView.postMessage(JSON.stringify({ lat: pos.lat.toFixed(6), lng: pos.lng.toFixed(6) }));
-});
-map.on('click', function(e) {
-    marker.setLatLng(e.latlng);
-    window.ReactNativeWebView.postMessage(JSON.stringify({ lat: e.latlng.lat.toFixed(6), lng: e.latlng.lng.toFixed(6) }));
-});
-</script>
-</body>
-</html>`;
+<style>*{margin:0;padding:0}body{background:#0D0D15}#map{width:100%;height:100vh}</style></head><body>
+<div id="map"></div><script>
+var map=L.map('map').setView([${lat},${lng}],15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+var marker=L.marker([${lat},${lng}],{draggable:true}).addTo(map);
+marker.on('dragend',function(e){var p=marker.getLatLng();window.ReactNativeWebView.postMessage(JSON.stringify({lat:p.lat.toFixed(6),lng:p.lng.toFixed(6)}))});
+map.on('click',function(e){marker.setLatLng(e.latlng);window.ReactNativeWebView.postMessage(JSON.stringify({lat:e.latlng.lat.toFixed(6),lng:e.latlng.lng.toFixed(6)}))});
+</script></body></html>`;
 
 export default function GoklinScreen({ navigation }) {
     const { token } = useAuth();
     const isLoggedIn = !!token;
+    const intervalRef = useRef(null);
 
     const [prices, setPrices] = useState([]);
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showLogin, setShowLogin] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [showPayModal, setShowPayModal] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [detailOrder, setDetailOrder] = useState(null);
+    const [payOrder, setPayOrder] = useState(null);
+    const [payBank, setPayBank] = useState(null);
+    const [previewImage, setPreviewImage] = useState(null);
 
     // Order form
     const [selectedDurasi, setSelectedDurasi] = useState(null);
@@ -75,335 +68,507 @@ export default function GoklinScreen({ navigation }) {
     const [longitude, setLongitude] = useState('112.768845');
     const [jamPesan, setJamPesan] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
 
-    const activeOrder = orders.find(o => ['pending', 'dibayar', 'dikonfirmasi', 'mitra_otw', 'mitra_bekerja'].includes(o.status));
-    const showForm = !activeOrder && isLoggedIn;
+    const POLL_INTERVAL = __DEV__ ? 10000 : 300000; // 10s dev, 5m prod
 
     const fetchData = useCallback(async () => {
         try {
-            const [pricesRes] = await Promise.all([
+            const [pricesRes, ordersRes] = await Promise.all([
                 api.get('/goklin/prices'),
+                isLoggedIn ? api.get('/goklin/orders') : Promise.resolve({ data: { data: [] } }),
             ]);
             setPrices(pricesRes.data.data || []);
+            setOrders(ordersRes.data.data || []);
         } catch (e) {}
-        if (isLoggedIn) {
-            try {
-                const ordersRes = await api.get('/goklin/orders');
-                setOrders(ordersRes.data.data || []);
-            } catch (e) {}
-        }
         setLoading(false);
     }, [isLoggedIn]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    // Polling
+    useEffect(() => {
+        if (!isLoggedIn) return;
+        intervalRef.current = setInterval(fetchData, POLL_INTERVAL);
+        return () => clearInterval(intervalRef.current);
+    }, [isLoggedIn, fetchData, POLL_INTERVAL]);
+
+    // Auto-location
+    useEffect(() => {
+        (async () => {
+            try {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status === 'granted') {
+                    const loc = await Location.getCurrentPositionAsync({});
+                    setLatitude(loc.coords.latitude.toFixed(6));
+                    setLongitude(loc.coords.longitude.toFixed(6));
+                }
+            } catch (e) {}
+        })();
+    }, []);
+
     const handleSubmit = async () => {
         if (!selectedDurasi) { Alert.alert('Peringatan', 'Pilih durasi layanan.'); return; }
         if (!lokasi.trim()) { Alert.alert('Peringatan', 'Masukkan lokasi.'); return; }
-        if (!jamPesan.trim()) { Alert.alert('Peringatan', 'Masukkan jam pesan. Format: YYYY-MM-DD HH:MM'); return; }
+        if (!jamPesan.trim()) { Alert.alert('Peringatan', 'Pilih jam pesan.'); return; }
+
+        // Format datetime: convert from input format to backend format (Y-m-d H:i:s)
+        let jamFormatted = jamPesan.trim().replace('T', ' ');
+        if (jamFormatted.length === 16) jamFormatted += ':00'; // Append :ss if missing
 
         const price = prices.find(p => p.durasi === selectedDurasi);
         if (!price) { Alert.alert('Error', 'Harga tidak ditemukan.'); return; }
-
         setSubmitting(true);
         try {
             const res = await api.post('/goklin/order', {
-                durasi: selectedDurasi,
-                harga: price.harga,
-                lokasi: lokasi.trim(),
-                latitude,
-                longitude,
-                jam_pesan: jamPesan.trim(),
+                durasi: selectedDurasi, harga: price.harga,
+                lokasi: lokasi.trim(), latitude, longitude,
+                jam_pesan: jamFormatted,
             });
-            Alert.alert('Berhasil', res.data.message);
+            const newOrder = res.data.data;
+            // Open payment modal immediately
+            setPayOrder(newOrder);
+            setPreviewImage(null);
+            try { const b = await api.get('/goklin/bank-info'); if (b.data?.data) setPayBank(b.data.data); } catch (e) {}
+            setShowPayModal(true);
+            // Reset form
+            setShowForm(false);
+            setSelectedDurasi(null);
+            setLokasi(''); setJamPesan('');
             fetchData();
         } catch (e) {
-            const msg = e.response?.data?.message || 'Gagal membuat pesanan.';
-            Alert.alert('Gagal', msg);
-        } finally {
-            setSubmitting(false);
-        }
+            Alert.alert('Gagal', e.response?.data?.message || 'Gagal membuat pesanan.');
+        } finally { setSubmitting(false); }
     };
 
     const handleBayar = async (order) => {
-        // For now, just navigate to riwayat with info about payment
-        Alert.alert('Info', 'Silakan transfer ke rekening yang tertera dan upload bukti bayar. Fitur upload bukti bayar akan segera hadir.');
+        setPayOrder(order);
+        setPreviewImage(null);
+        setShowPayModal(true); // spinner langsung mutar
+        // Fetch bank info di background
+        try { const res = await api.get('/goklin/bank-info'); if (res.data?.data) setPayBank(res.data.data); } catch (e) {}
     };
 
-    if (loading) {
-        return (
-            <View style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-                <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-                    <Text style={styles.headerTitle}>GoKlin</Text>
-                </LinearGradient>
-                <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
-            </View>
-        );
-    }
+    const pickReceipt = async () => {
+        if (!payOrder) return;
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') { Alert.alert('Izin Diperlukan', 'Aplikasi membutuhkan akses ke galeri.'); return; }
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 0.8 });
+        if (result.canceled || !result.assets[0]) return;
+        setPreviewImage(result.assets[0]);
+    };
 
-    if (!isLoggedIn) {
-        return (
-            <View style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-                <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-                    <Text style={styles.headerTitle}>GoKlin</Text>
-                </LinearGradient>
-                <View style={styles.loginPrompt}>
-                    <Ionicons name="sparkles" size={64} color={colors.primary} />
-                    <Text style={styles.loginTitle}>Login Diperlukan</Text>
-                    <Text style={styles.loginSubtitle}>Masuk untuk memesan layanan kebersihan</Text>
-                    <TouchableOpacity style={styles.loginBtn} onPress={() => setShowLogin(true)}>
-                        <Ionicons name="log-in-outline" size={20} color="#fff" />
-                        <Text style={styles.loginBtnText}>  Masuk / Daftar</Text>
-                    </TouchableOpacity>
-                </View>
-                <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
-            </View>
+    const submitReceipt = async () => {
+        if (!payOrder || !previewImage) return;
+        setUploading(true);
+        try {
+            const fd = new FormData();
+            // Handle blob URIs (web) vs file URIs (native)
+            if (Platform.OS === 'web' && previewImage.uri?.startsWith('blob:')) {
+                const blob = await fetch(previewImage.uri).then(r => r.blob());
+                fd.append('bukti_bayar', blob, 'bukti_bayar.jpg');
+            } else {
+                fd.append('bukti_bayar', { uri: previewImage.uri, type: 'image/jpeg', name: 'bukti_bayar.jpg' });
+            }
+            await api.post(`/goklin/order/${payOrder.id}/bayar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+            setShowPayModal(false);
+            setPreviewImage(null);
+            fetchData();
+        } catch (e) {
+            Alert.alert('Gagal', e.response?.data?.message || e.message || 'Gagal upload.');
+        }
+        finally { setUploading(false); }
+    };
+
+    const handleCancel = (order) => {
+        Alert.alert('Batalkan Pesanan', `Yakin ingin membatalkan ${order.kode_order}?`,
+            [{
+                text: 'Ya, Batalkan', style: 'destructive', onPress: async () => {
+                    try {
+                        await api.post(`/goklin/order/${order.id}/cancel`);
+                        Alert.alert('Berhasil', 'Pesanan dibatalkan.');
+                        fetchData();
+                    } catch (e) { Alert.alert('Gagal', 'Tidak dapat membatalkan pesanan.'); }
+                },
+            },
+            { text: 'Tidak', style: 'cancel' },
+            ]
         );
-    }
+    };
+
+    const renderOrder = (order) => {
+        const st = STATUS_MAP[order.status] || {};
+        const isPending = order.status === 'pending';
+        const isActive = ['pending', 'dibayar', 'dikonfirmasi', 'mitra_otw', 'mitra_bekerja'].includes(order.status);
+        return (
+            <TouchableOpacity key={order.id} style={[styles.orderCard, isActive && styles.orderCardActive]}
+                onPress={() => { setDetailOrder(order); setShowDetailModal(true); }} activeOpacity={0.8}>
+                <View style={styles.orderHeader}>
+                    <Text style={styles.orderKode}>{order.kode_order}</Text>
+                    <Ionicons name={st.icon || 'ellipse'} size={20} color={st.color} />
+                </View>
+                <Text style={[styles.orderStatus, { color: st.color }]}>{st.label || order.status}</Text>
+                <View style={styles.orderDetail}>
+                    <Text style={styles.orderLabel}>{order.durasi} jam — Rp {Number(order.harga).toLocaleString('id-ID')}</Text>
+                    <Text style={styles.orderLabel}>{order.lokasi}</Text>
+                    {order.mitra && <Text style={styles.orderLabel}>Mitra: {order.mitra.nama}</Text>}
+                    {order.catatan_admin && (
+                        <View style={styles.catatanBox}>
+                            <Ionicons name="information-circle" size={14} color={colors.primary} />
+                            <Text style={styles.catatanText}>{order.catatan_admin}</Text>
+                        </View>
+                    )}
+                </View>
+                {isPending && (
+                    <View style={styles.orderActions}>
+                        <TouchableOpacity style={styles.bayarBtn} onPress={() => handleBayar(order)} disabled={showPayModal}>
+                            {showPayModal ? <ActivityIndicator size="small" color="#fff" /> : <><Ionicons name="cash" size={16} color="#fff" /><Text style={styles.btnText}>  Bayar</Text></>}
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(order)}>
+                            <Ionicons name="close-circle" size={16} color={colors.danger} />
+                            <Text style={[styles.btnText, { color: colors.danger }]}>  Batal</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </TouchableOpacity>
+        );
+    };
+
+    if (loading) return (
+        <View style={styles.container}>
+            <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
+            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+                <Text style={styles.headerTitle}>GoKlin</Text>
+            </LinearGradient>
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
+        </View>
+    );
+
+    if (!isLoggedIn) return (
+        <View style={styles.container}>
+            <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
+            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+                <Text style={styles.headerTitle}>GoKlin</Text>
+            </LinearGradient>
+            <View style={styles.loginPrompt}>
+                <Ionicons name="sparkles" size={64} color={colors.primary} />
+                <Text style={styles.loginTitle}>Login Diperlukan</Text>
+                <Text style={styles.loginSubtitle}>Masuk untuk memesan layanan kebersihan</Text>
+                <TouchableOpacity style={styles.loginBtn} onPress={() => setShowLogin(true)}>
+                    <Ionicons name="log-in-outline" size={20} color="#fff" />
+                    <Text style={styles.loginBtnText}>  Masuk / Daftar</Text>
+                </TouchableOpacity>
+            </View>
+            <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
+        </View>
+    );
 
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
             <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-                <Text style={styles.headerTitle}>GoKlin</Text>
-                {orders.length > 0 && (
-                    <Text style={styles.headerSub}>{orders.length} pesanan</Text>
-                )}
+                <View style={styles.headerRow}>
+                    <Text style={styles.headerTitle}>GoKlin</Text>
+                    <TouchableOpacity style={styles.newOrderBtn} onPress={() => setShowForm(!showForm)}>
+                        <Ionicons name={showForm ? 'list' : 'add'} size={18} color="#fff" />
+                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>  {showForm ? 'Orderan' : 'Pesan Lagi'}</Text>
+                    </TouchableOpacity>
+                </View>
             </LinearGradient>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-                {activeOrder ? (
-                    /* Active Order Status */
-                    <View style={styles.statusSection}>
-                        <Text style={styles.sectionTitle}>Pesanan Aktif</Text>
-                        <View style={styles.statusCard}>
-                            <View style={styles.statusHeader}>
-                                <Ionicons name={STATUS_MAP[activeOrder.status]?.icon || 'time'} size={32} color={STATUS_MAP[activeOrder.status]?.color || colors.textSecondary} />
-                                <View style={{ flex: 1, marginLeft: 12 }}>
-                                    <Text style={styles.statusLabel}>{STATUS_MAP[activeOrder.status]?.label || activeOrder.status}</Text>
-                                    <Text style={styles.statusKode}>{activeOrder.kode_order}</Text>
-                                </View>
-                            </View>
-                            <View style={styles.statusDetail}>
-                                <View style={styles.statusRow}>
-                                    <Text style={styles.statusKey}>Durasi</Text>
-                                    <Text style={styles.statusVal}>{activeOrder.durasi} jam</Text>
-                                </View>
-                                <View style={styles.statusRow}>
-                                    <Text style={styles.statusKey}>Harga</Text>
-                                    <Text style={styles.statusVal}>Rp {Number(activeOrder.harga).toLocaleString('id-ID')}</Text>
-                                </View>
-                                <View style={styles.statusRow}>
-                                    <Text style={styles.statusKey}>Lokasi</Text>
-                                    <Text style={styles.statusVal}>{activeOrder.lokasi}</Text>
-                                </View>
-                                <View style={styles.statusRow}>
-                                    <Text style={styles.statusKey}>Jam Pesan</Text>
-                                    <Text style={styles.statusVal}>{activeOrder.jam_pesan}</Text>
-                                </View>
-                                {activeOrder.mitra && (
-                                    <View style={styles.statusRow}>
-                                        <Text style={styles.statusKey}>Mitra</Text>
-                                        <Text style={styles.statusVal}>{activeOrder.mitra.nama}</Text>
-                                    </View>
-                                )}
-                                {activeOrder.catatan_admin && (
-                                    <View style={styles.catatanBox}>
-                                        <Ionicons name="information-circle" size={16} color={colors.primary} />
-                                        <Text style={styles.catatanText}>{activeOrder.catatan_admin}</Text>
-                                    </View>
-                                )}
-                            </View>
-                            {activeOrder.status === 'pending' && (
-                                <TouchableOpacity style={styles.bayarBtn} onPress={() => handleBayar(activeOrder)}>
-                                    <Ionicons name="cash" size={18} color="#fff" />
-                                    <Text style={styles.bayarBtnText}>  Bayar Sekarang</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
+                {!showForm && orders.map(renderOrder)}
+
+                {!showForm && orders.length === 0 && (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="sparkles" size={48} color={colors.textSecondary} />
+                        <Text style={styles.emptyText}>Belum ada pesanan</Text>
+                        <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowForm(true)}>
+                            <Text style={{ color: '#fff', fontWeight: '700' }}>Pesan Sekarang</Text>
+                        </TouchableOpacity>
                     </View>
-                ) : null}
+                )}
 
-                {showForm ? (
-                    /* Order Form */
+                {showForm && (
                     <View style={styles.formSection}>
-                        <Text style={styles.sectionTitle}>Pesan Layanan Kebersihan</Text>
+                        <TouchableOpacity style={styles.backFormBtn} onPress={() => setShowForm(false)}>
+                            <Ionicons name="arrow-back" size={18} color={colors.primary} />
+                            <Text style={{ color: colors.primary, fontWeight: '600', marginLeft: 6 }}>Kembali ke Orderan</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.formTitle}>Pesan Layanan Kebersihan</Text>
 
-                        {/* Pricing */}
                         <Text style={styles.formLabel}>Pilih Durasi</Text>
                         <View style={styles.priceGrid}>
                             {prices.filter(p => p.aktif).map(p => (
-                                <TouchableOpacity
-                                    key={p.id}
+                                <TouchableOpacity key={p.id}
                                     style={[styles.priceCard, selectedDurasi === p.durasi && styles.priceCardActive]}
-                                    onPress={() => setSelectedDurasi(p.durasi)}
-                                    activeOpacity={0.7}
-                                >
+                                    onPress={() => setSelectedDurasi(p.durasi)}>
                                     <Text style={[styles.priceDurasi, selectedDurasi === p.durasi && styles.priceDurasiActive]}>{p.durasi} Jam</Text>
                                     <Text style={[styles.priceHarga, selectedDurasi === p.durasi && styles.priceHargaActive]}>Rp {Number(p.harga).toLocaleString('id-ID')}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
 
-                        {/* Location */}
                         <Text style={styles.formLabel}>Lokasi</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            placeholder="Masukkan alamat lengkap"
-                            placeholderTextColor={colors.textSecondary}
-                            value={lokasi}
-                            onChangeText={setLokasi}
-                            multiline
-                        />
+                        <TextInput style={styles.input} placeholder="Masukkan alamat" placeholderTextColor={colors.textSecondary} value={lokasi} onChangeText={setLokasi} multiline />
 
-                        <Text style={styles.formLabel}>Titik Lokasi (Map)</Text>
+                        <Text style={styles.formLabel}>Titik Lokasi (opsional)</Text>
                         <View style={styles.mapWrap}>
-                            <WebView
-                                source={{ html: generateMapHtml(parseFloat(latitude), parseFloat(longitude)) }}
-                                style={styles.mapWebview}
-                                scrollEnabled={false}
-                                onMessage={(e) => {
-                                    try {
-                                        const data = JSON.parse(e.nativeEvent.data);
-                                        if (data.lat && data.lng) {
-                                            setLatitude(data.lat);
-                                            setLongitude(data.lng);
-                                        }
-                                    } catch (err) {}
+                            <WebView source={{ html: generateMapHtml(parseFloat(latitude), parseFloat(longitude)) }}
+                                style={styles.mapWebview} scrollEnabled={false}
+                                onMessage={(e) => { try { const d = JSON.parse(e.nativeEvent.data); if (d.lat && d.lng) { setLatitude(d.lat); setLongitude(d.lng); } } catch (err) {} }} />
+                        </View>
+                        <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4, marginBottom: 8 }}>
+                            {latitude && longitude ? `Titik: ${latitude}, ${longitude}` : 'Map tidak tampil? Abaikan, order tetap bisa diproses.'}
+                        </Text>
+
+                        <Text style={styles.formLabel}>Jam Pesan</Text>
+                        {Platform.OS === 'web' ? (
+                            <input
+                                type="datetime-local"
+                                value={jamPesan}
+                                onChange={(e) => setJamPesan(e.target.value)}
+                                style={{
+                                    width: '100%', padding: 14, fontSize: 14,
+                                    backgroundColor: colors.inputBg, color: colors.text,
+                                    border: `1px solid ${colors.border}`, borderRadius: 12,
+                                    outline: 'none', fontFamily: 'inherit',
                                 }}
                             />
-                        </View>
+                        ) : (
+                            <>
+                                <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+                                    <Text style={{ color: jamPesan ? colors.text : colors.textSecondary, fontSize: 14 }}>
+                                        {jamPesan || 'Ketuk untuk pilih tanggal & jam'}
+                                    </Text>
+                                </TouchableOpacity>
+                                {showDatePicker && (
+                                    <DateTimePicker
+                                        value={new Date()}
+                                        mode="date"
+                                        display="default"
+                                        onChange={(event, selectedDate) => {
+                                            setShowDatePicker(false);
+                                            if (selectedDate) {
+                                                setJamPesan(
+                                                    selectedDate.getFullYear() + '-' +
+                                                    String(selectedDate.getMonth()+1).padStart(2,'0') + '-' +
+                                                    String(selectedDate.getDate()).padStart(2,'0')
+                                                );
+                                                setTimeout(() => setShowTimePicker(true), 300);
+                                            }
+                                        }}
+                                    />
+                                )}
+                                {showTimePicker && (
+                                    <DateTimePicker
+                                        value={new Date()}
+                                        mode="time"
+                                        display="default"
+                                        onChange={(event, selectedTime) => {
+                                            setShowTimePicker(false);
+                                            if (selectedTime) {
+                                                setJamPesan(prev => {
+                                                    const datePart = prev.split(' ')[0];
+                                                    return datePart + ' ' +
+                                                        String(selectedTime.getHours()).padStart(2,'0') + ':' +
+                                                        String(selectedTime.getMinutes()).padStart(2,'0') + ':00';
+                                                });
+                                            }
+                                        }}
+                                    />
+                                )}
+                            </>
+                        )}
 
-                        {/* Time */}
-                        <Text style={styles.formLabel}>Jam Pesan (YYYY-MM-DD HH:MM)</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            placeholder="Contoh: 2026-05-20 14:00"
-                            placeholderTextColor={colors.textSecondary}
-                            value={jamPesan}
-                            onChangeText={setJamPesan}
-                            autoCapitalize="none"
-                        />
-
-                        {/* Submit */}
-                        <TouchableOpacity
-                            style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
-                            onPress={handleSubmit}
-                            disabled={submitting}
-                            activeOpacity={0.8}
-                        >
-                            {submitting ? (
-                                <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    <Ionicons name="send" size={18} color="#fff" />
-                                    <Text style={styles.submitBtnText}>  Buat Pesanan</Text>
-                                </View>
-                            )}
+                        <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting}>
+                            {submitting ? <ActivityIndicator color="#fff" size="small" /> : <><Ionicons name="send" size={18} color="#fff" /><Text style={{ color: '#fff', fontWeight: 'bold', marginLeft: 8 }}>  Buat Pesanan</Text></>}
                         </TouchableOpacity>
                     </View>
-                ) : !activeOrder ? null : null}
-
-                {/* Riwayat */}
-                {orders.length > 0 && (
-                    <View style={styles.riwayatSection}>
-                        <Text style={styles.sectionTitle}>Riwayat Pesanan</Text>
-                        {orders.map(order => (
-                            <View key={order.id} style={[styles.riwayatCard, order.id === activeOrder?.id && styles.riwayatCardActive]}>
-                                <View style={styles.riwayatHeader}>
-                                    <Text style={styles.riwayatKode}>{order.kode_order}</Text>
-                                    <Ionicons name={STATUS_MAP[order.status]?.icon || 'ellipse'} size={18} color={STATUS_MAP[order.status]?.color || colors.textSecondary} />
-                                </View>
-                                <Text style={styles.riwayatStatus}>{STATUS_MAP[order.status]?.label || order.status}</Text>
-                                <View style={styles.riwayatRow}>
-                                    <Text style={styles.riwayatLabel}>{order.durasi} jam</Text>
-                                    <Text style={styles.riwayatLabel}>Rp {Number(order.harga).toLocaleString('id-ID')}</Text>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
                 )}
-
                 <View style={{ height: 100 }} />
             </ScrollView>
+
+            {/* Payment Modal */}
+            <Modal visible={showPayModal} transparent animationType="slide" onRequestClose={() => { if (!uploading) setShowPayModal(false); }}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        {!previewImage ? (
+                            <>
+                                <Text style={styles.modalTitle}>Info Pembayaran</Text>
+                                {payOrder && payBank && (
+                                    <>
+                                        <View style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>Bank</Text>
+                                            <Text style={styles.modalValue}>{payBank.nama_bank}</Text>
+                                        </View>
+                                        <View style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>No. Rekening</Text>
+                                            <Text style={styles.modalValue}>{payBank.no_rekening}</Text>
+                                        </View>
+                                        <View style={styles.modalRow}>
+                                            <Text style={styles.modalLabel}>Atas Nama</Text>
+                                            <Text style={styles.modalValue}>{payBank.atas_nama}</Text>
+                                        </View>
+                                        <View style={[styles.modalRow, { borderBottomWidth: 0 }]}>
+                                            <Text style={styles.modalLabel}>Total</Text>
+                                            <Text style={[styles.modalValue, { color: colors.primary, fontWeight: 'bold' }]}>
+                                                Rp {Number(payOrder.harga).toLocaleString('id-ID')}
+                                            </Text>
+                                        </View>
+                                        <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginVertical: 12 }}>
+                                            Transfer ke rekening di atas, lalu upload bukti bayar
+                                        </Text>
+                                        <TouchableOpacity style={styles.modalBtn} onPress={pickReceipt}>
+                                            <Text style={{ color: '#fff', fontWeight: '700' }}>Pilih Bukti Bayar</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.modalCancel} onPress={() => setShowPayModal(false)}>
+                                            <Text style={{ color: colors.textSecondary }}>Tutup</Text>
+                                        </TouchableOpacity>
+                                    </>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.modalTitle}>Preview Bukti Bayar</Text>
+                                <View style={styles.previewWrap}>
+                                    <Image
+                                        source={{ uri: previewImage.uri }}
+                                        style={styles.previewImage}
+                                        resizeMode="contain"
+                                    />
+                                </View>
+                                <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginVertical: 8 }}>
+                                    {payOrder?.kode_order} — Rp {Number(payOrder?.harga || 0).toLocaleString('id-ID')}
+                                </Text>
+                                <TouchableOpacity style={styles.modalBtn} onPress={submitReceipt} disabled={uploading}>
+                                    {uploading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Submit Bukti Bayar</Text>}
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.modalCancel} onPress={() => setPreviewImage(null)} disabled={uploading}>
+                                    <Text style={{ color: colors.textSecondary }}>Pilih Ulang</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Order Detail Modal */}
+            <Modal visible={showDetailModal} transparent animationType="slide" onRequestClose={() => setShowDetailModal(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Detail Pesanan</Text>
+                        {detailOrder && (
+                            <>
+                                <View style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Kode</Text>
+                                    <Text style={styles.modalValue}>{detailOrder.kode_order}</Text>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Status</Text>
+                                    <Text style={[styles.modalValue, { color: (STATUS_MAP[detailOrder.status]?.color || colors.text) }]}>
+                                        {STATUS_MAP[detailOrder.status]?.label || detailOrder.status}
+                                    </Text>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Durasi</Text>
+                                    <Text style={styles.modalValue}>{detailOrder.durasi} jam</Text>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Harga</Text>
+                                    <Text style={[styles.modalValue, { color: colors.primary, fontWeight: 'bold' }]}>
+                                        Rp {Number(detailOrder.harga).toLocaleString('id-ID')}
+                                    </Text>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Lokasi</Text>
+                                    <Text style={[styles.modalValue, { flex: 1, textAlign: 'right' }]}>{detailOrder.lokasi}</Text>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Jam Pesan</Text>
+                                    <Text style={styles.modalValue}>{detailOrder.jam_pesan}</Text>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <Text style={styles.modalLabel}>Dibuat</Text>
+                                    <Text style={styles.modalValue}>{new Date(detailOrder.created_at).toLocaleString('id-ID')}</Text>
+                                </View>
+                                {detailOrder.mitra && (
+                                    <View style={styles.modalRow}>
+                                        <Text style={styles.modalLabel}>Mitra</Text>
+                                        <Text style={styles.modalValue}>{detailOrder.mitra.nama}</Text>
+                                    </View>
+                                )}
+                                {detailOrder.catatan_admin && (
+                                    <View style={[styles.modalRow, { borderBottomWidth: 0 }]}>
+                                        <Text style={styles.modalLabel}>Catatan</Text>
+                                        <Text style={[styles.modalValue, { flex: 1, textAlign: 'right' }]}>{detailOrder.catatan_admin}</Text>
+                                    </View>
+                                )}
+                                <TouchableOpacity style={styles.modalBtn} onPress={() => setShowDetailModal(false)}>
+                                    <Text style={{ color: '#fff', fontWeight: '700' }}>Tutup</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg },
-    header: {
-        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 16 : 56,
-        paddingBottom: 24,
-        paddingHorizontal: 20,
-        alignItems: 'center',
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
-    },
-    headerTitle: { color: colors.white, fontSize: 20, fontWeight: '700' },
-    headerSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
-
+    header: { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 16 : 56, paddingBottom: 24, paddingHorizontal: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
+    newOrderBtn: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, alignItems: 'center' },
     loginPrompt: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
     loginTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text, marginTop: 16, marginBottom: 8 },
     loginSubtitle: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 24 },
     loginBtn: { flexDirection: 'row', backgroundColor: colors.primary, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
     loginBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-
-    sectionTitle: { fontSize: 16, fontWeight: 'bold', color: colors.text, marginBottom: 14, paddingHorizontal: 20, marginTop: 20 },
-
-    // Active Order Status
-    statusSection: {},
-    statusCard: {
-        backgroundColor: colors.card, borderRadius: 16, marginHorizontal: 16, padding: 16,
-        borderWidth: 1, borderColor: colors.border, elevation: 4, shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 8,
-    },
-    statusHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    statusLabel: { fontSize: 16, fontWeight: '700', color: colors.text },
-    statusKode: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-    statusDetail: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
-    statusRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-    statusKey: { fontSize: 13, color: colors.textSecondary },
-    statusVal: { fontSize: 13, fontWeight: '600', color: colors.text, flex: 1, textAlign: 'right' },
-    catatanBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(229,167,27,0.12)', borderRadius: 10, padding: 10, marginTop: 8 },
-    catatanText: { fontSize: 12, color: colors.primary, marginLeft: 8, flex: 1, lineHeight: 18 },
-    bayarBtn: { flexDirection: 'row', backgroundColor: colors.success, borderRadius: 12, padding: 14, justifyContent: 'center', alignItems: 'center', marginTop: 16 },
-
-    // Form
-    formSection: {},
-    formLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, paddingHorizontal: 20 },
-    priceGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 8, marginBottom: 16 },
-    priceCard: {
-        width: (width - 48) / 2, backgroundColor: colors.card, borderRadius: 14, padding: 16,
-        alignItems: 'center', borderWidth: 1.5, borderColor: colors.border,
-    },
+    orderCard: { backgroundColor: colors.card, borderRadius: 14, marginHorizontal: 16, marginTop: 12, padding: 14, borderWidth: 1, borderColor: colors.border },
+    orderCardActive: { borderColor: colors.primary },
+    orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    orderKode: { fontSize: 14, fontWeight: 'bold', color: colors.text },
+    orderStatus: { fontSize: 13, fontWeight: '600', marginTop: 4, marginBottom: 8 },
+    orderDetail: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
+    orderLabel: { fontSize: 12, color: colors.textSecondary, marginBottom: 4 },
+    orderActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+    bayarBtn: { flex: 1, flexDirection: 'row', backgroundColor: colors.success, borderRadius: 10, padding: 12, justifyContent: 'center', alignItems: 'center' },
+    cancelBtn: { borderWidth: 1.5, borderColor: colors.danger, borderRadius: 10, padding: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+    btnText: { fontSize: 13, fontWeight: '700' },
+    catatanBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(229,167,27,0.12)', borderRadius: 8, padding: 8, marginTop: 4 },
+    catatanText: { fontSize: 11, color: colors.primary, marginLeft: 6, flex: 1 },
+    emptyState: { alignItems: 'center', paddingTop: 60 },
+    emptyText: { fontSize: 16, color: colors.textSecondary, marginTop: 12, marginBottom: 20 },
+    emptyBtn: { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+    formSection: { marginTop: 20, paddingHorizontal: 16 },
+    formTitle: { fontSize: 16, fontWeight: 'bold', color: colors.text, marginBottom: 16 },
+    backFormBtn: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+    formLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 8, marginTop: 8 },
+    priceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    priceCard: { width: (width - 48) / 2, backgroundColor: colors.card, borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1.5, borderColor: colors.border },
     priceCardActive: { borderColor: colors.primary, backgroundColor: 'rgba(229,167,27,0.1)' },
-    priceDurasi: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
+    priceDurasi: { fontSize: 16, fontWeight: '700', color: colors.text },
     priceDurasiActive: { color: colors.primary },
     priceHarga: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
     priceHargaActive: { color: colors.primary },
-    textInput: {
-        backgroundColor: colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
-        color: colors.text, fontSize: 14, padding: 14, marginHorizontal: 20, marginBottom: 16,
-        textAlignVertical: 'top',
-    },
-    mapWrap: { height: 200, marginHorizontal: 20, borderRadius: 12, overflow: 'hidden', marginBottom: 16 },
+    input: { backgroundColor: colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: colors.border, color: colors.text, fontSize: 14, padding: 14, textAlignVertical: 'top' },
+    mapWrap: { height: 200, borderRadius: 12, overflow: 'hidden' },
     mapWebview: { flex: 1, backgroundColor: 'transparent' },
-    submitBtn: { backgroundColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginHorizontal: 20, marginTop: 8 },
-    submitBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    submitBtn: { flexDirection: 'row', backgroundColor: colors.primary, borderRadius: 12, padding: 16, justifyContent: 'center', alignItems: 'center', marginTop: 16 },
 
-    // Riwayat
-    riwayatSection: {},
-    riwayatCard: {
-        backgroundColor: colors.card, borderRadius: 12, marginHorizontal: 20, marginBottom: 10,
-        padding: 14, borderWidth: 1, borderColor: colors.border,
-    },
-    riwayatCardActive: { borderColor: colors.primary },
-    riwayatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    riwayatKode: { fontSize: 14, fontWeight: 'bold', color: colors.text },
-    riwayatStatus: { fontSize: 12, color: colors.textSecondary, marginTop: 2, marginBottom: 8 },
-    riwayatRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    riwayatLabel: { fontSize: 12, color: colors.textSecondary },
+    // Payment Modal
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text, textAlign: 'center', marginBottom: 20 },
+    modalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+    modalLabel: { fontSize: 14, color: colors.textSecondary },
+    modalValue: { fontSize: 14, fontWeight: '600', color: colors.text },
+    modalBtn: { backgroundColor: colors.primary, borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 8 },
+    modalCancel: { alignItems: 'center', padding: 14, marginTop: 4 },
+    previewWrap: { backgroundColor: colors.bg, borderRadius: 12, overflow: 'hidden', marginVertical: 12, height: 200 },
+    previewImage: { flex: 1, width: '100%' },
 });
