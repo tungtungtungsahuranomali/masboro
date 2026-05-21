@@ -13,6 +13,7 @@ import api, { API_URL } from '../api';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme';
 import Skeleton from '../components/Skeleton';
+import ThemeHeader from '../components/ThemeHeader';
 import LoginModal from '../components/LoginModal';
 
 const { width } = Dimensions.get('window');
@@ -185,12 +186,7 @@ export default function HomeScreen({ navigation }) {
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
                 <ScrollView showsVerticalScrollIndicator={false}>
                     {/* Header Skeleton */}
-                    <LinearGradient
-                        colors={[colors.gradientStart, colors.gradientEnd]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.header}
-                    >
+                    <ThemeHeader style={styles.header}>
                         <View style={styles.headerTop}>
                             <View style={styles.headerLeft}>
                                 <Skeleton width={44} height={44} borderRadius={22} style={{ marginRight: 12 }} />
@@ -201,7 +197,7 @@ export default function HomeScreen({ navigation }) {
                             </View>
                             <Skeleton width={60} height={30} borderRadius={20} />
                         </View>
-                    </LinearGradient>
+                    </ThemeHeader>
 
                     {/* Floating Card Skeleton */}
                     <View style={styles.floatingCardWrap}>
@@ -288,7 +284,7 @@ export default function HomeScreen({ navigation }) {
     return (
         <View style={styles.container}>
             {theme?.bg_image && (
-                <Image source={{ uri: theme.bg_image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                <View style={StyleSheet.absoluteFill}><Image source={{ uri: theme.bg_image }} style={StyleSheet.absoluteFill} resizeMode="cover" /><View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.25)' }]} /></View>
             )}
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
             <ScrollView
@@ -296,12 +292,7 @@ export default function HomeScreen({ navigation }) {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
             >
                 {/* Gradient Header */}
-                <LinearGradient
-                    colors={[colors.gradientStart, colors.gradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.header}
-                >
+                <ThemeHeader style={styles.header}>
                     {isLoggedIn ? (
                         <View style={styles.headerTop}>
                             <View style={styles.headerLeft}>
@@ -346,7 +337,7 @@ export default function HomeScreen({ navigation }) {
                             </View>
                         </View>
                     )}
-                </LinearGradient>
+                </ThemeHeader>
 
                 {/* Floating Info Card */}
                 <View style={styles.floatingCardWrap}>

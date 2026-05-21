@@ -8,7 +8,7 @@ import api from '../api';
 import colors from '../theme';
 
 // Versi lokal aplikasi — didapat otomatis dari build.gradle (Android)
-export const LOCAL_VERSION = Application.nativeApplicationVersion || '1.0.0';
+export const LOCAL_VERSION = Application.nativeApplicationVersion || '1.2.9';
 
 const compareVersions = (v1, v2) => {
     const a = v1.split('.').map(Number);

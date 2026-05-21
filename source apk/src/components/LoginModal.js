@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 28,
         paddingHorizontal: 24,
         paddingTop: 20,
-        paddingBottom: Platform.OS === 'android' ? 80 : 40,
+        paddingBottom: Platform.OS === 'android' ? 200 : 160,
         maxHeight: '90%',
     },
     closeBtn: {

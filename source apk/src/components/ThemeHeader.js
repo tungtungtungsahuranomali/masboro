@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ImageBackground, Platform, StatusBar } from 'react-native';
+import { View, ImageBackground, StyleSheet, Platform, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import colors from '../theme';
@@ -12,9 +12,10 @@ export default function ThemeHeader({ children, style }) {
         return (
             <ImageBackground
                 source={{ uri: theme.header_image }}
-                style={[{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 56, paddingBottom: 40, paddingHorizontal: 20 }, style]}
+                style={[{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 56, paddingBottom: 40, paddingHorizontal: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, overflow: 'hidden' }, style]}
                 resizeMode="cover"
             >
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
                 <View style={{ flex: 1 }}>
                     {children}
                 </View>

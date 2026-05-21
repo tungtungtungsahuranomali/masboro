@@ -14,6 +14,7 @@ import api, { API_URL, DEFAULT_API_URL, updateBaseURL, resetBaseURL } from '../a
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme';
 import Skeleton from '../components/Skeleton';
+import ThemeHeader from '../components/ThemeHeader';
 import LoginModal from '../components/LoginModal';
 
 const { width } = Dimensions.get('window');
@@ -114,18 +115,14 @@ export default function ProfilScreen({ navigation }) {
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
                 <ScrollView showsVerticalScrollIndicator={false}>
-                    <LinearGradient
-                        colors={[colors.gradientStart, colors.gradientEnd]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.header}
-                    >
+                    
+                    <ThemeHeader style={styles.header}>
                         <View style={styles.avatarWrap}>
                             <Skeleton width={90} height={90} borderRadius={45} />
                         </View>
                         <Skeleton width={150} height={24} style={{ marginBottom: 6 }} />
                         <Skeleton width={120} height={16} />
-                    </LinearGradient>
+                    </ThemeHeader>
 
                     <View style={styles.card}>
                         <Skeleton width={140} height={20} style={{ marginBottom: 16 }} />
@@ -255,11 +252,7 @@ export default function ProfilScreen({ navigation }) {
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-                <LinearGradient
-                    colors={[colors.gradientStart, colors.gradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.header}
+                <ThemeHeader style={styles.header}>
                 >
                     <View style={styles.avatarWrap}>
                         <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }]}>
@@ -272,7 +265,7 @@ export default function ProfilScreen({ navigation }) {
                     <TouchableOpacity onPress={handleDevTap} activeOpacity={1}>
                         <Text style={styles.headerSub}>Masuk untuk melihat informasi akun</Text>
                     </TouchableOpacity>
-                </LinearGradient>
+                </ThemeHeader>
 
                 <View style={styles.loginPrompt}>
                     <Text style={styles.loginTitle}>Login Diperlukan</Text>
@@ -307,11 +300,7 @@ export default function ProfilScreen({ navigation }) {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
             >
                 {/* Header with Avatar */}
-                <LinearGradient
-                    colors={[colors.gradientStart, colors.gradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.header}
+                <ThemeHeader style={styles.header}>
                 >
                     <TouchableOpacity style={styles.avatarWrap} onPress={() => { pickImage(); handleDevTap(); }} activeOpacity={0.8}>
                         {pelanggan?.foto_profil ? (
@@ -336,7 +325,7 @@ export default function ProfilScreen({ navigation }) {
                     </TouchableOpacity>
                     <Text style={styles.headerName}>{pelanggan?.nama || '-'}</Text>
                     <Text style={styles.headerSub}>{pelanggan?.whatsapp || '-'}</Text>
-                </LinearGradient>
+                </ThemeHeader>
 
                 {/* Subscription Info Card */}
                 <View style={styles.card}>
