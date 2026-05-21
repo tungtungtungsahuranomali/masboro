@@ -1,0 +1,15 @@
+/node_modules
+/.expo
+/dist
+/web-build
+*.apk
+*.bin
+*.py
+.env*
+/Database
+/source cms
+/apk sudah build
+/e2e-test.js
+/package.json
+/package-lock.json
+test-screenshots/

@@ -1,0 +1,50 @@
+name: Build Ligat APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        working-directory: source apk
+        run: npm ci
+
+      - name: Export Android bundle
+        working-directory: source apk
+        run: npx expo export --platform android
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prebuild & Build APK
+        working-directory: source apk
+        run: |
+          npx expo prebuild --platform android --clean
+          cd android
+          ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ligat-APK
+          path: source apk/android/app/build/outputs/apk/release/*.apk
+
+      - name: Get download URL
+        id: get_url
+        run: |
+          APK_FILE=$(ls source apk/android/app/build/outputs/apk/release/*.apk | head -1)
+          echo "apk=$APK_FILE" >> $GITHUB_OUTPUT
