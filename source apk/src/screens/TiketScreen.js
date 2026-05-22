@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, FlatList, TextInput, StyleSheet, TouchableOpacity,
     Alert, RefreshControl, ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar
@@ -12,6 +12,7 @@ import api, { API_URL } from '../api';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme';
 import Skeleton from '../components/Skeleton';
+import ThemeHeader from '../components/ThemeHeader';
 import LoginModal from '../components/LoginModal';
 
 export default function TiketScreen({ navigation }) {
@@ -26,8 +27,10 @@ export default function TiketScreen({ navigation }) {
     const [selectedImage, setSelectedImage] = useState(null);
     const [editImage, setEditImage] = useState(null);
     const [showLogin, setShowLogin] = useState(false);
+    const intervalRef = useRef(null);
 
     const isLoggedIn = !!token;
+    const POLL_INTERVAL = 10000;
 
     const getImageUrl = (path) => {
         const base = API_URL.replace('/api', '');
@@ -60,7 +63,13 @@ export default function TiketScreen({ navigation }) {
         }
     };
 
-    useEffect(() => { fetchTiket(); }, [isLoggedIn]);
+    useEffect(() => {
+        fetchTiket();
+        if (isLoggedIn) {
+            intervalRef.current = setInterval(fetchTiket, POLL_INTERVAL);
+            return () => clearInterval(intervalRef.current);
+        }
+    }, [isLoggedIn]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -164,14 +173,10 @@ export default function TiketScreen({ navigation }) {
         return (
             <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-                <LinearGradient
-                    colors={[colors.gradientStart, colors.gradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.header}
+                <ThemeHeader style={styles.header}>
                 >
                     <Text style={styles.headerTitle}>Tiket Keluhan</Text>
-                </LinearGradient>
+                </ThemeHeader>
                 <View style={[styles.list, { marginTop: 16 }]}>
                     {[1, 2, 3].map(i => (
                         <View key={i} style={styles.card}>
@@ -255,7 +260,7 @@ export default function TiketScreen({ navigation }) {
                         {item.keterangan_tindakan && (
                             <View style={styles.tindakanBox}>
                                 <View style={styles.tindakanHeader}>
-                                    <Ionicons name="build" size={14} color={colors.success} />
+                                    <Ionicons name="build" size={14} color={colors.primary} />
                                     <Text style={styles.tindakanLabel}>  Tindakan:</Text>
                                 </View>
                                 <Text style={styles.tindakanText}>{item.keterangan_tindakan}</Text>
@@ -283,14 +288,10 @@ export default function TiketScreen({ navigation }) {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-                <LinearGradient
-                    colors={[colors.gradientStart, colors.gradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.header}
+                <ThemeHeader style={styles.header}>
                 >
                     <Text style={styles.headerTitle}>Tiket Keluhan</Text>
-                </LinearGradient>
+                </ThemeHeader>
                 <View style={styles.loginPrompt}>
                     <View style={styles.loginIconWrap}>
                         <Ionicons name="chatbubbles-outline" size={64} color={colors.primary} />
@@ -317,14 +318,11 @@ export default function TiketScreen({ navigation }) {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-            <LinearGradient
-                colors={[colors.gradientStart, colors.gradientEnd]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+            <ThemeHeader
                 style={styles.header}
             >
                 <Text style={styles.headerTitle}>Tiket Keluhan</Text>
-            </LinearGradient>
+            </ThemeHeader>
 
             {!hasAktif && (
                 <View style={styles.formCard}>
@@ -575,7 +573,7 @@ const styles = StyleSheet.create({
 
     tindakanBox: {
         marginTop: 10,
-        backgroundColor: '#f0faf5',
+        backgroundColor: 'rgba(229,167,27,0.12)',
         borderRadius: 10,
         padding: 12,
     },
@@ -583,7 +581,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    tindakanLabel: { fontSize: 12, fontWeight: '700', color: colors.success },
+    tindakanLabel: { fontSize: 12, fontWeight: '700', color: colors.primary },
     tindakanText: { fontSize: 13, color: colors.text, marginTop: 4, lineHeight: 18 },
 
     editTrigger: {

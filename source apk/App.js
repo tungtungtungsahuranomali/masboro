@@ -189,6 +189,9 @@ function AppNavigator() {
         case 'isolir':
           nav.navigate('Main', { screen: 'Profil' });
           break;
+        case 'goklin':
+          nav.navigate('Goklin');
+          break;
         case 'informasi':
           nav.navigate('Main', { screen: 'Home' });
           break;

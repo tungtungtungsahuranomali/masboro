@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    View, Text, ScrollView, StyleSheet, Dimensions,
+    View, Text, ScrollView, StyleSheet, Dimensions, Modal,
     TouchableOpacity, RefreshControl, ActivityIndicator, Alert,
     StatusBar, Platform, TextInput,
 } from 'react-native';
@@ -197,55 +197,41 @@ export default function ProfilScreen({ navigation }) {
     };
 
     const renderDevOptions = () => (
-        <>
-            <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => setShowDevOptions(false)}
-            >
-                <View style={[styles.menuIcon, { backgroundColor: 'rgba(231,76,60,0.15)' }]}>
-                    <Ionicons name="close" size={18} color={colors.danger} />
-                </View>
-                <Text style={[styles.menuText, { color: colors.danger }]}>Tutup Developer Options</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <View style={styles.divider} />
+        <View style={{ padding: 4 }}>
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', marginBottom: 8 }}>
+                ⚙️ Developer Options
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 6 }}>
+                Current: <Text style={{ color: colors.text }}>{API_URL}</Text>
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
+                Default: <Text style={{ color: colors.text }}>{DEFAULT_API_URL}</Text>
+            </Text>
 
-            <View style={{ padding: 4 }}>
-                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700', marginBottom: 8 }}>
-                    ⚙️ Developer Options
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 6 }}>
-                    Current: <Text style={{ color: colors.text }}>{API_URL}</Text>
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
-                    Default: <Text style={{ color: colors.text }}>{DEFAULT_API_URL}</Text>
-                </Text>
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>API Server URL</Text>
+            <TextInput
+                style={styles.devInput}
+                value={customUrl}
+                onChangeText={setCustomUrl}
+                placeholder="http://example.com/api"
+                placeholderTextColor={colors.textSecondary}
+                autoCapitalize="none"
+                autoCorrect={false}
+            />
 
-                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>API Server URL</Text>
-                <TextInput
-                    style={styles.devInput}
-                    value={customUrl}
-                    onChangeText={setCustomUrl}
-                    placeholder="http://example.com/api"
-                    placeholderTextColor={colors.textSecondary}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                />
-
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                    <TouchableOpacity style={styles.devSaveBtn} onPress={handleSaveUrl} disabled={saving}>
-                        {saving ? (
-                            <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Simpan</Text>
-                        )}
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.devResetBtn} onPress={handleResetUrl}>
-                        <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '600' }}>Reset</Text>
-                    </TouchableOpacity>
-                </View>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                <TouchableOpacity style={styles.devSaveBtn} onPress={handleSaveUrl} disabled={saving}>
+                    {saving ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Simpan</Text>
+                    )}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.devResetBtn} onPress={handleResetUrl}>
+                    <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '600' }}>Reset</Text>
+                </TouchableOpacity>
             </View>
-        </>
+        </View>
     );
 
     if (!isLoggedIn) {
@@ -280,11 +266,44 @@ export default function ProfilScreen({ navigation }) {
                     </TouchableOpacity>
                 </View>
 
-                {showDevOptions && (
-                    <View style={[styles.card, { marginTop: 8 }]}>
-                        {renderDevOptions()}
+                <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
+                {/* Developer Options Modal */}
+                <Modal visible={showDevOptions} transparent animationType="slide" onRequestClose={() => setShowDevOptions(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Developer Options</Text>
+                                <TouchableOpacity onPress={() => setShowDevOptions(false)}>
+                                    <Ionicons name="close" size={24} color={colors.text} />
+                                </TouchableOpacity>
+                            </View>
+                            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 6 }}>
+                                Current: <Text style={{ color: colors.text }}>{API_URL}</Text>
+                            </Text>
+                            <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
+                                Default: <Text style={{ color: colors.text }}>{DEFAULT_API_URL}</Text>
+                            </Text>
+                            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>API Server URL</Text>
+                            <TextInput
+                                style={styles.devInput}
+                                value={customUrl}
+                                onChangeText={setCustomUrl}
+                                placeholder="http://example.com/api"
+                                placeholderTextColor={colors.textSecondary}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                                <TouchableOpacity style={styles.devSaveBtn} onPress={handleSaveUrl} disabled={saving}>
+                                    {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Simpan</Text>}
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.devResetBtn} onPress={handleResetUrl}>
+                                    <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '600' }}>Reset</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     </View>
-                )}
+                </Modal>
 
                 <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
             </View>
@@ -472,6 +491,44 @@ export default function ProfilScreen({ navigation }) {
                 <View style={{ height: 130 }} />
             </ScrollView>
 
+            {/* Developer Options Modal */}
+            <Modal visible={showDevOptions} transparent animationType="slide" onRequestClose={() => setShowDevOptions(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Developer Options</Text>
+                            <TouchableOpacity onPress={() => setShowDevOptions(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 6 }}>
+                            Current: <Text style={{ color: colors.text }}>{API_URL}</Text>
+                        </Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>
+                            Default: <Text style={{ color: colors.text }}>{DEFAULT_API_URL}</Text>
+                        </Text>
+                        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600', marginBottom: 6 }}>API Server URL</Text>
+                        <TextInput
+                            style={styles.devInput}
+                            value={customUrl}
+                            onChangeText={setCustomUrl}
+                            placeholder="http://example.com/api"
+                            placeholderTextColor={colors.textSecondary}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                            <TouchableOpacity style={styles.devSaveBtn} onPress={handleSaveUrl} disabled={saving}>
+                                {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Simpan</Text>}
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.devResetBtn} onPress={handleResetUrl}>
+                                <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '600' }}>Reset</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
         </View>
     );
@@ -602,5 +659,30 @@ const styles = StyleSheet.create({
         padding: 12,
         paddingHorizontal: 20,
         alignItems: 'center',
+    },
+
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: colors.card,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingBottom: 48,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: colors.text,
     },
 });

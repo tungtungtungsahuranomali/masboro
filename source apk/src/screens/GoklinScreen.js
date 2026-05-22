@@ -15,6 +15,7 @@ import api, { API_URL } from '../api';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme';
 import LoginModal from '../components/LoginModal';
+import ThemeHeader from '../components/ThemeHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -55,11 +56,15 @@ export default function GoklinScreen({ navigation }) {
     const [showForm, setShowForm] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showPayModal, setShowPayModal] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [detailOrder, setDetailOrder] = useState(null);
     const [payOrder, setPayOrder] = useState(null);
     const [payBank, setPayBank] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
+    const [searchResults, setSearchResults] = useState([]);
+    const [searching, setSearching] = useState(false);
+    const searchTimeoutRef = useRef(null);
 
     // Order form
     const [selectedDurasi, setSelectedDurasi] = useState(null);
@@ -71,7 +76,7 @@ export default function GoklinScreen({ navigation }) {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
 
-    const POLL_INTERVAL = __DEV__ ? 10000 : 300000; // 10s dev, 5m prod
+    const POLL_INTERVAL = 10000; // 10 detik
 
     const fetchData = useCallback(async () => {
         try {
@@ -84,6 +89,44 @@ export default function GoklinScreen({ navigation }) {
         } catch (e) {}
         setLoading(false);
     }, [isLoggedIn]);
+
+    const searchLocation = useCallback(async (query) => {
+        if (!query.trim() || query.trim().length < 3) {
+            setSearchResults([]);
+            setSearching(false);
+            return;
+        }
+        setSearching(true);
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=id`
+            );
+            const data = await res.json();
+            setSearchResults(data || []);
+        } catch (e) {
+            setSearchResults([]);
+        }
+        setSearching(false);
+    }, []);
+
+    const handleLocationChange = (text) => {
+        setLokasi(text);
+        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = setTimeout(() => searchLocation(text), 500);
+    };
+
+    const selectLocation = (item) => {
+        setLokasi(item.display_name);
+        setLatitude(item.lat);
+        setLongitude(item.lon);
+        setSearchResults([]);
+    };
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchData();
+        setRefreshing(false);
+    }, [fetchData]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -212,7 +255,7 @@ export default function GoklinScreen({ navigation }) {
                 <View style={styles.orderDetail}>
                     <Text style={styles.orderLabel}>{order.durasi} jam — Rp {Number(order.harga).toLocaleString('id-ID')}</Text>
                     <Text style={styles.orderLabel}>{order.lokasi}</Text>
-                    {order.mitra && <Text style={styles.orderLabel}>Mitra: {order.mitra.nama}</Text>}
+                    {/* order.mitra && <Text style={styles.orderLabel}>Mitra: {order.mitra.nama}</Text> */}
                     {order.catatan_admin && (
                         <View style={styles.catatanBox}>
                             <Ionicons name="information-circle" size={14} color={colors.primary} />
@@ -238,9 +281,9 @@ export default function GoklinScreen({ navigation }) {
     if (loading) return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+            <ThemeHeader style={styles.header}>
                 <Text style={styles.headerTitle}>GoKlin</Text>
-            </LinearGradient>
+            </ThemeHeader>
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
         </View>
     );
@@ -248,9 +291,9 @@ export default function GoklinScreen({ navigation }) {
     if (!isLoggedIn) return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+            <ThemeHeader style={styles.header}>
                 <Text style={styles.headerTitle}>GoKlin</Text>
-            </LinearGradient>
+            </ThemeHeader>
             <View style={styles.loginPrompt}>
                 <Ionicons name="sparkles" size={64} color={colors.primary} />
                 <Text style={styles.loginTitle}>Login Diperlukan</Text>
@@ -267,7 +310,7 @@ export default function GoklinScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+            <ThemeHeader style={styles.header}>
                 <View style={styles.headerRow}>
                     <Text style={styles.headerTitle}>GoKlin</Text>
                     <TouchableOpacity style={styles.newOrderBtn} onPress={() => setShowForm(!showForm)}>
@@ -275,9 +318,10 @@ export default function GoklinScreen({ navigation }) {
                         <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>  {showForm ? 'Orderan' : 'Pesan Lagi'}</Text>
                     </TouchableOpacity>
                 </View>
-            </LinearGradient>
+            </ThemeHeader>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}>
                 {!showForm && orders.map(renderOrder)}
 
                 {!showForm && orders.length === 0 && (
@@ -311,7 +355,18 @@ export default function GoklinScreen({ navigation }) {
                         </View>
 
                         <Text style={styles.formLabel}>Lokasi</Text>
-                        <TextInput style={styles.input} placeholder="Masukkan alamat" placeholderTextColor={colors.textSecondary} value={lokasi} onChangeText={setLokasi} multiline />
+                        <TextInput style={styles.input} placeholder="Cari alamat..." placeholderTextColor={colors.textSecondary} value={lokasi} onChangeText={handleLocationChange} multiline />
+                        {searching && <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 4 }} />}
+                        {searchResults.length > 0 && (
+                            <View style={styles.searchDropdown}>
+                                {searchResults.map((item) => (
+                                    <TouchableOpacity key={item.place_id} style={styles.searchItem} onPress={() => selectLocation(item)} activeOpacity={0.7}>
+                                        <Ionicons name="location" size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                                        <Text style={styles.searchItemText} numberOfLines={2}>{item.display_name}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
 
                         <Text style={styles.formLabel}>Titik Lokasi (opsional)</Text>
                         <View style={styles.mapWrap}>
@@ -493,12 +548,12 @@ export default function GoklinScreen({ navigation }) {
                                     <Text style={styles.modalLabel}>Dibuat</Text>
                                     <Text style={styles.modalValue}>{new Date(detailOrder.created_at).toLocaleString('id-ID')}</Text>
                                 </View>
-                                {detailOrder.mitra && (
+                                {/* detailOrder.mitra && (
                                     <View style={styles.modalRow}>
                                         <Text style={styles.modalLabel}>Mitra</Text>
                                         <Text style={styles.modalValue}>{detailOrder.mitra.nama}</Text>
                                     </View>
-                                )}
+                                ) */}
                                 {detailOrder.catatan_admin && (
                                     <View style={[styles.modalRow, { borderBottomWidth: 0 }]}>
                                         <Text style={styles.modalLabel}>Catatan</Text>
@@ -556,6 +611,9 @@ const styles = StyleSheet.create({
     priceHarga: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
     priceHargaActive: { color: colors.primary },
     input: { backgroundColor: colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: colors.border, color: colors.text, fontSize: 14, padding: 14, textAlignVertical: 'top' },
+    searchDropdown: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.primary, marginTop: 4, maxHeight: 200, overflow: 'hidden' },
+    searchItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+    searchItemText: { fontSize: 12, color: colors.text, flex: 1 },
     mapWrap: { height: 200, borderRadius: 12, overflow: 'hidden' },
     mapWebview: { flex: 1, backgroundColor: 'transparent' },
     submitBtn: { flexDirection: 'row', backgroundColor: colors.primary, borderRadius: 12, padding: 16, justifyContent: 'center', alignItems: 'center', marginTop: 16 },
