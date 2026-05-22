@@ -37,82 +37,27 @@ jobs:
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('source apk/android/**/*.gradle*', 'source apk/android/**/gradle-wrapper.properties') }}
-          restore-keys: |
-            gradle-
+          path: ~/.gradle/caches
+          key: gradle-${{ hashFiles('source apk/android/**/*.gradle*') }}
+          restore-keys: gradle-
 
-      - name: Prebuild & Build APK (Production)
+      - name: Prebuild & Build APK + AAB
         working-directory: source apk
-        env:
-          ANDROID_KEYSTORE_FILE: ligat-release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ligat2026
-          ANDROID_KEY_ALIAS: ligat
-          ANDROID_KEY_PASSWORD: ligat2026
         run: |
           npx expo prebuild --platform android --clean
           cd android
-          # Copy keystore ke lokasi yang benar
           cp ../ligat-release.keystore app/ligat-release.keystore
-          # Buat keystore.properties untuk signing
           echo "storeFile=ligat-release.keystore" > keystore.properties
           echo "storePassword=ligat2026" >> keystore.properties
           echo "keyAlias=ligat" >> keystore.properties
           echo "keyPassword=ligat2026" >> keystore.properties
-          # Build APK
           ./gradlew assembleRelease
-          # Build AAB
           ./gradlew bundleRelease
 
-      - name: Upload APK & AAB artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Ligat-Production
           path: |
             source apk/android/app/build/outputs/apk/release/*.apk
             source apk/android/app/build/outputs/bundle/release/*.aab
-
-      - name: Upload APK to gofile
-        id: gofile
-        run: |
-          APK_FILE=$(ls "source apk/android/app/build/outputs/apk/release/"*.apk | head -1)
-          echo "APK: $APK_FILE"
-          APK_PATH="$APK_FILE" python3 -c "
-import urllib.request, json, os
-apk_path = os.environ.get('APK_PATH', '')
-# Get server
-r = urllib.request.urlopen('https://api.gofile.io/servers')
-server = json.loads(r.read())['data']['servers'][0]['name']
-print('Server:', server)
-# Upload
-boundary = '----Boundary123'
-with open(apk_path, 'rb') as f:
-    fd = f.read()
-body = ('--' + boundary + '\r\nContent-Disposition: form-data; name=\"file\"; filename=\"Ligat.apk\"\r\nContent-Type: application/vnd.android.package-archive\r\n\r\n').encode() + fd + ('\r\n--' + boundary + '--\r\n').encode()
-req = urllib.request.Request(f'https://{server}.gofile.io/contents/uploadfile', data=body, headers={'Content-Type': 'multipart/form-data; boundary=' + boundary}, method='POST')
-r2 = json.loads(urllib.request.urlopen(req).read())
-url = r2['data']['downloadPage']
-print('Download URL:', url)
-with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-    f.write(f'url={url}\n')
-"
-
-      - name: Send WhatsApp notification
-        env:
-          FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
-          WA_TARGET: ${{ secrets.WA_TARGET }}
-          DOWNLOAD_URL: ${{ steps.gofile.outputs.url }}
-        run: |
-          python3 -c "
-import urllib.request, json, os, urllib.parse
-token = os.environ['FONNTE_TOKEN']
-target = os.environ['WA_TARGET']
-url = os.environ['DOWNLOAD_URL']
-msg = f'*Ligat App Update*\n\nAPK terbaru sudah siap.\n\nDownload: {url}'
-data = urllib.parse.urlencode({'target': target, 'message': msg}).encode()
-req = urllib.request.Request('https://api.fonnte.com/send', data=data, headers={'Authorization': token, 'Content-Type': 'application/x-www-form-urlencoded'})
-r = json.loads(urllib.request.urlopen(req).read())
-print('WA sent:', r['status'])
-"
