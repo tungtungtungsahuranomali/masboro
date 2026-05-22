@@ -13,6 +13,7 @@ import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme';
 import Skeleton from '../components/Skeleton';
+import ThemeHeader from '../components/ThemeHeader';
 import LoginModal from '../components/LoginModal';
 
 export default function TagihanScreen({ navigation }) {
@@ -148,14 +149,10 @@ export default function TagihanScreen({ navigation }) {
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-                <LinearGradient
-                    colors={[colors.gradientStart, colors.gradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.header}
+                <ThemeHeader style={styles.header}>
                 >
                     <Text style={styles.headerTitle}>Tagihan Saya</Text>
-                </LinearGradient>
+                </ThemeHeader>
                 <View style={styles.list}>
                     {[1, 2, 3].map(i => (
                         <View key={i} style={styles.card}>
@@ -300,14 +297,10 @@ export default function TagihanScreen({ navigation }) {
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-                <LinearGradient
-                    colors={[colors.gradientStart, colors.gradientEnd]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.header}
+                <ThemeHeader style={styles.header}>
                 >
                     <Text style={styles.headerTitle}>Tagihan Saya</Text>
-                </LinearGradient>
+                </ThemeHeader>
                 <View style={styles.loginPrompt}>
                     <View style={styles.loginIconWrap}>
                         <Ionicons name="receipt-outline" size={64} color={colors.primary} />
@@ -331,10 +324,7 @@ export default function TagihanScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
-            <LinearGradient
-                colors={[colors.gradientStart, colors.gradientEnd]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+            <ThemeHeader
                 style={styles.header}
             >
                 <Text style={styles.headerTitle}>Tagihan Saya</Text>
@@ -344,7 +334,7 @@ export default function TagihanScreen({ navigation }) {
                         <Text style={{ color: '#fff', fontSize: 28, fontWeight: 'bold' }}>Rp {formatRupiah(totalTagihan)}</Text>
                     </View>
                 )}
-            </LinearGradient>
+            </ThemeHeader>
 
             <FlatList
                 data={tagihans}

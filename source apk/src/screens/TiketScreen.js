@@ -27,6 +27,7 @@ export default function TiketScreen({ navigation }) {
     const [selectedImage, setSelectedImage] = useState(null);
     const [editImage, setEditImage] = useState(null);
     const [showLogin, setShowLogin] = useState(false);
+    const [hideForm, setHideForm] = useState(false);
     const intervalRef = useRef(null);
 
     const isLoggedIn = !!token;
@@ -78,6 +79,8 @@ export default function TiketScreen({ navigation }) {
 
     const hasAktif = tikets.some(t => t.status === 'Antrian' || t.status === 'Proses');
 
+    useEffect(() => { if (!hasAktif) setHideForm(false); }, [hasAktif]);
+
     const pickImage = async (mode = 'create') => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -103,6 +106,7 @@ export default function TiketScreen({ navigation }) {
             Alert.alert('Peringatan', 'Keluhan harus diisi.');
             return;
         }
+        setHideForm(true);
         setSubmitting(true);
         try {
             const formData = new FormData();
@@ -174,7 +178,6 @@ export default function TiketScreen({ navigation }) {
             <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
                 <ThemeHeader style={styles.header}>
-                >
                     <Text style={styles.headerTitle}>Tiket Keluhan</Text>
                 </ThemeHeader>
                 <View style={[styles.list, { marginTop: 16 }]}>
@@ -289,7 +292,6 @@ export default function TiketScreen({ navigation }) {
             >
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
                 <ThemeHeader style={styles.header}>
-                >
                     <Text style={styles.headerTitle}>Tiket Keluhan</Text>
                 </ThemeHeader>
                 <View style={styles.loginPrompt}>
@@ -324,7 +326,7 @@ export default function TiketScreen({ navigation }) {
                 <Text style={styles.headerTitle}>Tiket Keluhan</Text>
             </ThemeHeader>
 
-            {!hasAktif && (
+            {!hasAktif && !hideForm && (
                 <View style={styles.formCard}>
                     <View style={styles.formHeader}>
                         <Ionicons name="create" size={20} color={colors.primary} />

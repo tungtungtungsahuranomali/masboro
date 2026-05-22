@@ -55,40 +55,50 @@ export default function HomeScreen({ navigation }) {
     const [appSettings, setAppSettings] = useState(null);
     const [theme, setTheme] = useState(null);
     const [quickMenus, setQuickMenus] = useState([]);
+    const [dismissReminder, setDismissReminder] = useState(false);
     const slideRef = useRef(null);
+    const settingsIntervalRef = useRef(null);
 
     const isLoggedIn = !!token;
+    const SETTINGS_POLL_INTERVAL = 15000;
 
     // Fetch public app settings + quick menus (available without login)
+    const fetchSettings = useCallback(async () => {
+        try {
+            const [settingsRes, menuRes] = await Promise.all([
+                api.get('/app-settings'),
+                api.get('/quick-menus'),
+            ]);
+            if (settingsRes.data?.data) {
+                const d = settingsRes.data.data;
+                setAppSettings(d);
+                if (d.theme) setTheme(d.theme);
+            }
+            if (menuRes.data?.data) {
+                const menus = menuRes.data.data.filter(m => m.active);
+                setQuickMenus(menus);
+                AsyncStorage.setItem('quick_menus_cache', JSON.stringify(menus));
+            }
+        } catch (e) {}
+    }, []);
+
     useEffect(() => {
+        // Load from cache first
         (async () => {
             try {
-                // Load from cache first
                 const cachedMenus = await AsyncStorage.getItem('quick_menus_cache');
                 if (cachedMenus) {
                     const parsed = JSON.parse(cachedMenus);
                     setQuickMenus(parsed.filter(m => m.active));
                 }
             } catch (e) {}
-
-            try {
-                const [settingsRes, menuRes] = await Promise.all([
-                    api.get('/app-settings'),
-                    api.get('/quick-menus'),
-                ]);
-                if (settingsRes.data?.data) {
-                    const d = settingsRes.data.data;
-                    setAppSettings(d);
-                    if (d.theme) setTheme(d.theme);
-                }
-                if (menuRes.data?.data) {
-                    const menus = menuRes.data.data.filter(m => m.active);
-                    setQuickMenus(menus);
-                    AsyncStorage.setItem('quick_menus_cache', JSON.stringify(menus));
-                }
-            } catch (e) {}
         })();
-    }, []);
+
+        fetchSettings();
+
+        settingsIntervalRef.current = setInterval(fetchSettings, SETTINGS_POLL_INTERVAL);
+        return () => clearInterval(settingsIntervalRef.current);
+    }, [fetchSettings]);
 
     const fetchHome = async () => {
         if (!isLoggedIn) {
@@ -257,6 +267,11 @@ export default function HomeScreen({ navigation }) {
     const informasis = data?.informasis || [];
     const artikelTerbaru = data?.artikel_terbaru || [];
     const tagihanAktif = data?.tagihan_aktif || [];
+    const belumBayar = tagihanAktif.filter(t => t.status === 'Tertagih');
+    const tglMulai = parseInt(appSettings?.tgl_mulai_ingat || '1', 10);
+    const tglJatuhTempo = parseInt(appSettings?.tgl_jatuh_tempo || '5', 10);
+    const today = new Date().getDate();
+    const showReminder = isLoggedIn && !dismissReminder && today >= tglMulai && today <= tglJatuhTempo;
 
     const formatDate = (dateStr) => {
         const d = new Date(dateStr);
@@ -459,6 +474,44 @@ export default function HomeScreen({ navigation }) {
                         </TouchableOpacity>
                     );
                 })()}
+
+                {/* Reminder Tagihan */}
+                {showReminder && (
+                    <View style={styles.reminderCard}>
+                        <View style={styles.reminderHeader}>
+                            <View style={styles.reminderHeaderLeft}>
+                                <Ionicons name="alarm" size={18} color={colors.primary} />
+                                <Text style={styles.reminderTitle}>  Pengingat Tagihan</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setDismissReminder(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                <Ionicons name="close" size={18} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        {belumBayar.length > 0 ? (
+                            <>
+                                <Text style={styles.reminderBody}>
+                                    Tagihan periode ini belum dibayar. Segera lakukan pembayaran sebelum jatuh tempo.
+                                </Text>
+                                <View style={styles.reminderRow}>
+                                    <Text style={styles.reminderLabel}>Total Tagihan</Text>
+                                    <Text style={styles.reminderValue}>
+                                        Rp {belumBayar.reduce((sum, t) => sum + Number(t.nominal || 0), 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+                                    </Text>
+                                </View>
+                                <View style={styles.reminderRow}>
+                                    <Text style={styles.reminderLabel}>Jatuh Tempo</Text>
+                                    <Text style={[styles.reminderValue, { color: colors.danger }]}>Tanggal {tglJatuhTempo}</Text>
+                                </View>
+                                <TouchableOpacity style={styles.reminderBtn} onPress={() => navigation.navigate('Tagihan')} activeOpacity={0.8}>
+                                    <Ionicons name="card" size={16} color="#fff" />
+                                    <Text style={styles.reminderBtnText}>  Bayar Sekarang</Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <Text style={styles.reminderBody}>Semua tagihan sudah dibayar. Terima kasih!</Text>
+                        )}
+                    </View>
+                )}
 
                 {/* Quick Actions — Dynamic */}
                 {quickMenus.length > 0 && (
@@ -791,6 +844,70 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
+    // Reminder Tagihan
+    reminderCard: {
+        backgroundColor: colors.card,
+        marginHorizontal: 20,
+        marginTop: 20,
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: colors.primary,
+        borderStyle: 'dashed',
+    },
+    reminderHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    reminderHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    reminderTitle: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: colors.text,
+    },
+    reminderBody: {
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 20,
+        marginBottom: 12,
+    },
+    reminderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 6,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    reminderLabel: {
+        fontSize: 13,
+        color: colors.textSecondary,
+    },
+    reminderValue: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: colors.text,
+    },
+    reminderBtn: {
+        flexDirection: 'row',
+        backgroundColor: colors.primary,
+        borderRadius: 12,
+        padding: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 14,
+    },
+    reminderBtnText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+
     // Quick Actions
     quickActions: {
         paddingHorizontal: 20,
@@ -798,7 +915,7 @@ const styles = StyleSheet.create({
     },
     quickGrid: {
         flexDirection: 'row',
-        justifyContent: 'flex-start',
+        justifyContent: 'center',
         flexWrap: 'wrap',
         gap: 8,
     },

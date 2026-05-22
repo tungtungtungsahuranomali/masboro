@@ -239,7 +239,6 @@ export default function ProfilScreen({ navigation }) {
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
                 <ThemeHeader style={styles.header}>
-                >
                     <View style={styles.avatarWrap}>
                         <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }]}>
                             <Ionicons name="person" size={40} color="rgba(255,255,255,0.6)" />
@@ -320,7 +319,6 @@ export default function ProfilScreen({ navigation }) {
             >
                 {/* Header with Avatar */}
                 <ThemeHeader style={styles.header}>
-                >
                     <TouchableOpacity style={styles.avatarWrap} onPress={() => { pickImage(); handleDevTap(); }} activeOpacity={0.8}>
                         {pelanggan?.foto_profil ? (
                             <Image

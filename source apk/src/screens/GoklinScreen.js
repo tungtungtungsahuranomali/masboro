@@ -370,7 +370,7 @@ export default function GoklinScreen({ navigation }) {
 
                         <Text style={styles.formLabel}>Titik Lokasi (opsional)</Text>
                         <View style={styles.mapWrap}>
-                            <WebView source={{ html: generateMapHtml(parseFloat(latitude), parseFloat(longitude)) }}
+                            <WebView key={`map-${latitude}-${longitude}`} source={{ html: generateMapHtml(parseFloat(latitude), parseFloat(longitude)) }}
                                 style={styles.mapWebview} scrollEnabled={false}
                                 onMessage={(e) => { try { const d = JSON.parse(e.nativeEvent.data); if (d.lat && d.lng) { setLatitude(d.lat); setLongitude(d.lng); } } catch (err) {} }} />
                         </View>
