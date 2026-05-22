@@ -15,7 +15,7 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.ligat",
+      "package": "com.ligat.mma",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -52,7 +52,7 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      ["expo-build-properties", {"android": {"usesCleartextTraffic": true}}]
+      ["expo-build-properties", {"android": {"usesCleartextTraffic": false}}]
     ]
   }
 }
