@@ -9,9 +9,11 @@ import { useAuth } from '../context/AuthContext';
 import { LOCAL_VERSION } from '../hooks/useUpdateChecker';
 import api from '../api';
 import colors from '../theme';
+import { useToast } from '../components/Toast';
 
 export default function LoginScreen({ navigation }) {
     const { login } = useAuth();
+    const { showToast } = useToast();
     const [whatsapp, setWhatsapp] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -37,7 +39,7 @@ export default function LoginScreen({ navigation }) {
 
     const handleLogin = async () => {
         if (!whatsapp || !password) {
-            Alert.alert('Peringatan', 'Nomor WhatsApp dan Password harus diisi.');
+            showToast('Nomor WhatsApp dan Password harus diisi.', 'warning');
             return;
         }
         setLoading(true);
@@ -45,7 +47,7 @@ export default function LoginScreen({ navigation }) {
             await login(whatsapp, password);
         } catch (e) {
             const msg = e.response?.data?.message || 'Login gagal. Periksa koneksi internet.';
-            Alert.alert('Login Gagal', msg);
+            showToast(msg, 'error');
         } finally {
             setLoading(false);
         }

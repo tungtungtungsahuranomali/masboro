@@ -1,15 +1,28 @@
 /node_modules
-/.expo
-/dist
-/web-build
+/source apk/node_modules
+/source apk/.expo
+/source apk/dist
+/source apk/dist-new
+/source apk/web-build
 *.apk
-*.bin
-*.py
+*.apk.idsig
+*.jar
+*.rar
+*.tar
+*.zip
+*.exe
+*.bat
+*.jpg
+*.png
+*.log
+*.key
+*.keystore
+*.jks
+*.p8
+*.p12
 .env*
 /Database
 /source cms
 /apk sudah build
-/e2e-test.js
-/package.json
-/package-lock.json
-test-screenshots/
+.omo
+/test-screenshots

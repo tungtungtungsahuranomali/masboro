@@ -624,7 +624,7 @@ export default function HomeScreen({ navigation }) {
                 ))}
 
                 {/* Berita Terbaru */}
-                {artikelTerbaru.length > 0 && (
+                {appSettings?.berita_enabled !== 'false' && artikelTerbaru.length > 0 && (
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>📰 Berita Terbaru</Text>

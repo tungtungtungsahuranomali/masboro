@@ -99,6 +99,31 @@ export default function BeritaScreen({ navigation }) {
     const [loadingMore, setLoadingMore] = useState(false);
     const [page, setPage] = useState(1);
     const [lastPage, setLastPage] = useState(1);
+    const [beritaEnabled, setBeritaEnabled] = useState(true);
+    const [checkingSetting, setCheckingSetting] = useState(true);
+
+    // Cek apakah fitur berita diaktifkan dari CMS
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await api.get('/app-settings');
+                const enabled = res.data?.data?.berita_enabled;
+                setBeritaEnabled(enabled !== 'false');
+            } catch (e) {
+                setBeritaEnabled(true);
+            } finally {
+                setCheckingSetting(false);
+            }
+        })();
+    }, []);
+
+    useEffect(() => {
+        if (beritaEnabled) {
+            fetchArtikels(1, selectedKategori);
+        } else {
+            setLoading(false);
+        }
+    }, [beritaEnabled]);
 
     const fetchArtikels = async (pageNum = 1, kategoriId = null, append = false) => {
         try {
@@ -190,14 +215,21 @@ export default function BeritaScreen({ navigation }) {
             </LinearGradient>
 
             {/* Category Filter */}
+            {beritaEnabled && (
             <KategoriTab
                 kategoris={kategoris}
                 selected={selectedKategori}
                 onSelect={onSelectKategori}
             />
+            )}
 
             {/* Articles List */}
-            {loading ? (
+            {!beritaEnabled ? (
+                <View style={styles.center}>
+                    <Ionicons name="newspaper-outline" size={48} color={colors.textSecondary} />
+                    <Text style={styles.emptyText}>Fitur Berita sedang dinonaktifkan</Text>
+                </View>
+            ) : loading ? (
                 <View style={[styles.listContainer, { paddingTop: 16 }]}>
                     {[1, 2, 3].map(i => (
                         <View key={i} style={styles.card}>

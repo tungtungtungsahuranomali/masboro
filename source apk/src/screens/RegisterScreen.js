@@ -1181,12 +1181,12 @@ const s = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 10,
     },
-    stepTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 },
-    stepDesc: { fontSize: 13, color: colors.textSecondary, marginBottom: 20, lineHeight: 18 },
+    stepTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A2E', marginBottom: 4 },
+    stepDesc: { fontSize: 13, color: '#555', marginBottom: 20, lineHeight: 18 },
 
     // Input
     fieldWrap: { marginBottom: 16 },
-    label: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: 6 },
+    label: { fontSize: 13, fontWeight: '600', color: '#222', marginBottom: 6 },
     required: { color: colors.danger },
     inputWrap: {
         flexDirection: 'row',
@@ -1199,7 +1199,7 @@ const s = StyleSheet.create({
     inputIcon: { paddingLeft: 14 },
     input: { flex: 1, padding: 12, fontSize: 14, color: colors.text },
     eyeBtn: { paddingRight: 14, paddingVertical: 12 },
-    hint: { fontSize: 11, color: colors.textSecondary, marginTop: 4 },
+    hint: { fontSize: 11, color: '#777', marginTop: 4 },
 
     // Select chips
     selectGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -1368,7 +1368,7 @@ const s = StyleSheet.create({
         marginTop: 1,
     },
     checkboxActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    checkLabel: { flex: 1, fontSize: 12, color: colors.text, lineHeight: 18 },
+    checkLabel: { flex: 1, fontSize: 12, color: '#222', lineHeight: 18 },
     agreementBox: {
         backgroundColor: colors.bg,
         borderRadius: 12,

@@ -5,10 +5,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from './Toast';
 import colors from '../theme';
 
 export default function LoginModal({ visible, onClose, navigation }) {
     const { login } = useAuth();
+    const { showToast } = useToast();
     const [whatsapp, setWhatsapp] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -16,7 +18,7 @@ export default function LoginModal({ visible, onClose, navigation }) {
 
     const handleLogin = async () => {
         if (!whatsapp || !password) {
-            Alert.alert('Peringatan', 'Nomor WhatsApp dan Password harus diisi.');
+            showToast('Nomor WhatsApp dan Password harus diisi.', 'warning');
             return;
         }
         setLoading(true);
@@ -27,7 +29,7 @@ export default function LoginModal({ visible, onClose, navigation }) {
             onClose();
         } catch (e) {
             const msg = e.response?.data?.message || 'Login gagal. Periksa koneksi internet.';
-            Alert.alert('Login Gagal', msg);
+            showToast(msg, 'error');
         } finally {
             setLoading(false);
         }

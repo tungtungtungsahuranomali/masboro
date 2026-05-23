@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api, { API_URL } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
 import colors from '../theme';
 import LoginModal from '../components/LoginModal';
 import ThemeHeader from '../components/ThemeHeader';
@@ -75,6 +76,7 @@ export default function GoklinScreen({ navigation }) {
     const [submitting, setSubmitting] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
+    const { showToast } = useToast();
 
     const POLL_INTERVAL = 10000; // 10 detik
 
@@ -152,9 +154,9 @@ export default function GoklinScreen({ navigation }) {
     }, []);
 
     const handleSubmit = async () => {
-        if (!selectedDurasi) { Alert.alert('Peringatan', 'Pilih durasi layanan.'); return; }
-        if (!lokasi.trim()) { Alert.alert('Peringatan', 'Masukkan lokasi.'); return; }
-        if (!jamPesan.trim()) { Alert.alert('Peringatan', 'Pilih jam pesan.'); return; }
+        if (!selectedDurasi) { showToast('Pilih durasi layanan.', 'warning'); return; }
+        if (!lokasi.trim()) { showToast('Masukkan lokasi.', 'warning'); return; }
+        if (!jamPesan.trim()) { showToast('Pilih jam pesan.', 'warning'); return; }
 
         // Format datetime: convert from input format to backend format (Y-m-d H:i:s)
         let jamFormatted = jamPesan.trim().replace('T', ' ');

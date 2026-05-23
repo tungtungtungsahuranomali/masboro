@@ -10,6 +10,7 @@ import { ThemeProvider } from './src/context/ThemeContext';
 import useUpdateChecker from './src/hooks/useUpdateChecker';
 import colors from './src/theme';
 import Skeleton from './src/components/Skeleton';
+import { ToastProvider } from './src/components/Toast';
 import { setupNotificationListeners } from './src/services/NotificationService';
 
 // Critical screens loaded eagerly
@@ -247,11 +248,13 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppNavigator />
-      </AuthProvider>
-    </ThemeProvider>
+    <ToastProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </ThemeProvider>
+    </ToastProvider>
   );
 }
 
