@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Default API URL — fallback jika tidak ada custom
-const DEFAULT_API_URL = 'http://157.15.40.90/ligat-api/api';
+const DEFAULT_API_URL = 'https://ligat.my.id/api';
 
 // Inisialisasi baseURL dari AsyncStorage
 let API_URL = DEFAULT_API_URL;

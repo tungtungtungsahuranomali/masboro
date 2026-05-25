@@ -1,0 +1,28 @@
+###=== Akses WinSCP / server ===###
+host : 76.13.23.233
+port : 22
+password : MMA@23?vps?access
+
+###=== Mysql Root ===###
+mysql -u root -p
+password: pcms12345
+
+###=== Create Database ===###
+-- 1. Buat database untuk project Anda
+CREATE DATABASE db_ligat;
+
+-- 2. Buat user baru khusus untuk domain ligat.my.id
+-- Ganti 'PasswordLigat2026' dengan password yang Anda inginkan
+CREATE USER 'ligat_user'@'localhost' IDENTIFIED BY 'PasswordLigat2026';
+
+-- 3. Berikan hak akses penuh hanya ke database db_ligat
+GRANT ALL PRIVILEGES ON db_ligat.* TO 'ligat_user'@'localhost';
+
+-- 4. Refresh dan keluar
+FLUSH PRIVILEGES;
+EXIT;
+
+- masuk ke cd /var/www/ligat
+- mysql -u ligat_user -p db_ligat < /var/www/ligat/mentari.sql
+
+Menampilkan file hide di WinScp CTRL + ALT + H

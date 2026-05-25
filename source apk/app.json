@@ -52,7 +52,7 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      ["expo-build-properties", {"android": {"usesCleartextTraffic": false}}]
+      ["expo-build-properties", {"android": {"usesCleartextTraffic": true}}]
     ]
   }
 }
