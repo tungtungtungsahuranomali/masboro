@@ -215,8 +215,10 @@ Semua dependencies sama. Tidak ada native module baru.
 | File | Size | Source | Status |
 |------|------|--------|--------|
 | `apk sudah build/app-debug.apk` | 143 MB | GitHub Actions (Ubuntu) | ✅ **Proven working** |
-| `apk sudah build/Ligat-1.2.9.apk` | 76.7 MB | Zip injection local | ❌ Gagal install |
-| `apk sudah build/Ligat-1.2.9-orig-test.apk` | 76.7 MB | Build sebelumnya | ❌ Gak jelas tested? |
+|| `apk sudah build/Ligat-1.2.9.apk` | 76.7 MB | Zip injection local | ❌ Gagal install |
+|| `apk sudah build/Ligat-1.2.9-orig-test.apk` | 76.7 MB | Build sebelumnya | ❌ Gak jelas tested? |
+|| `apk sudah build/app-debug-build-2.apk` | 140 MB | GitHub Actions (export+inject) | ✅ **APK fix: API HTTPS + cleartext + bundle** |
+| | **GoFile download**: https://gofile.io/d/UhA2RR | | |
 
 ---
 

@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import useUpdateChecker from './src/hooks/useUpdateChecker';
@@ -88,6 +89,7 @@ function BeritaStackScreen() {
 }
 
 function TabNavigator() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -102,13 +104,13 @@ function TabNavigator() {
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.3,
           shadowRadius: 12,
-          height: Platform.OS === 'android' ? 90 : 80,
-          paddingBottom: Platform.OS === 'android' ? 24 : 20,
+          height: 72,
+          paddingBottom: 0,
           paddingTop: 8,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
           position: 'absolute',
-          bottom: 30,
+          bottom: insets.bottom,
           left: 0,
           right: 0,
         },

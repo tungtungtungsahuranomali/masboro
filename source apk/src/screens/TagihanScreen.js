@@ -154,7 +154,6 @@ export default function TagihanScreen({ navigation }) {
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
                 <ThemeHeader style={styles.header}>
-                >
                     <Text style={styles.headerTitle}>Tagihan Saya</Text>
                 </ThemeHeader>
                 <View style={styles.list}>
@@ -302,7 +301,6 @@ export default function TagihanScreen({ navigation }) {
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
                 <ThemeHeader style={styles.header}>
-                >
                     <Text style={styles.headerTitle}>Tagihan Saya</Text>
                 </ThemeHeader>
                 <View style={styles.loginPrompt}>
