@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
-    KeyboardAvoidingView, Platform, Alert, ActivityIndicator, StatusBar,
+    KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
+import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 import colors from '../theme';
 
 export default function ForgotPasswordScreen({ navigation }) {
@@ -16,24 +18,27 @@ export default function ForgotPasswordScreen({ navigation }) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+    const { showToast } = useToast();
 
     const handleSendOtp = async () => {
         if (!whatsapp) {
-            Alert.alert('Peringatan', 'Nomor WhatsApp harus diisi.');
+            showToast('Nomor WhatsApp harus diisi.', 'warning');
             return;
         }
         setLoading(true);
         try {
             const res = await api.post('/forgot-password/send-otp', { whatsapp });
             if (res.data?.success) {
-                Alert.alert('Berhasil', res.data.message);
+                showToast(res.data.message, 'success');
                 setStep(2);
             } else {
-                Alert.alert('Gagal', res.data?.message || 'Nomor tidak terdaftar.');
+                showToast(res.data?.message || 'Nomor tidak terdaftar.', 'error');
             }
         } catch (e) {
             const msg = e.response?.data?.message || 'Terjadi kesalahan jaringan/server.';
-            Alert.alert('Gagal', msg);
+            showToast(msg, 'error');
         } finally {
             setLoading(false);
         }
@@ -41,15 +46,15 @@ export default function ForgotPasswordScreen({ navigation }) {
 
     const handleResetPassword = async () => {
         if (!otp || !password || !confirmPassword) {
-            Alert.alert('Peringatan', 'Semua kolom harus diisi.');
+            showToast('Semua kolom harus diisi.', 'warning');
             return;
         }
         if (password !== confirmPassword) {
-            Alert.alert('Peringatan', 'Konfirmasi password tidak cocok.');
+            showToast('Konfirmasi password tidak cocok.', 'warning');
             return;
         }
         if (password.length < 6) {
-            Alert.alert('Peringatan', 'Password minimal 6 karakter.');
+            showToast('Password minimal 6 karakter.', 'warning');
             return;
         }
         setLoading(true);
@@ -60,21 +65,23 @@ export default function ForgotPasswordScreen({ navigation }) {
                 password_baru: password,
             });
             if (res.data?.success) {
-                Alert.alert('Berhasil', res.data.message, [
-                    { text: 'OK', onPress: () => navigation.goBack() }
-                ]);
+                setSuccessMessage(res.data.message);
+                setShowSuccess(true);
             } else {
-                Alert.alert('Gagal', res.data?.message || 'Gagal mengubah password.');
+                showToast(res.data?.message || 'Gagal mengubah password.', 'error');
             }
         } catch (e) {
             const msg = e.response?.data?.message || 'Terjadi kesalahan.';
-            Alert.alert('Gagal', msg);
+            showToast(msg, 'error');
         } finally {
             setLoading(false);
         }
     };
 
+    const goBack = () => navigation.goBack();
+
     return (
+        <>
         <LinearGradient
             colors={[colors.gradientStart, colors.gradientEnd]}
             start={{ x: 0, y: 0 }}
@@ -210,6 +217,17 @@ export default function ForgotPasswordScreen({ navigation }) {
                 </View>
             </KeyboardAvoidingView>
         </LinearGradient>
+
+            <ConfirmModal
+                visible={showSuccess}
+                onClose={() => { setShowSuccess(false); goBack(); }}
+                title="Berhasil"
+                message={successMessage}
+                confirmText="OK"
+                confirmStyle="confirm"
+                onConfirm={goBack}
+            />
+        </>
     );
 }
 

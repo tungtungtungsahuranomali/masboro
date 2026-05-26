@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, FlatList, TextInput, StyleSheet, TouchableOpacity,
-    Alert, RefreshControl, ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar
+    RefreshControl, ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar
 } from 'react-native';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import api, { API_URL } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
 import colors from '../theme';
 import Skeleton from '../components/Skeleton';
 import ThemeHeader from '../components/ThemeHeader';
@@ -31,6 +32,7 @@ export default function TiketScreen({ navigation }) {
     const intervalRef = useRef(null);
 
     const isLoggedIn = !!token;
+    const { showToast } = useToast();
     const POLL_INTERVAL = 10000;
 
     const getImageUrl = (path) => {
@@ -84,7 +86,7 @@ export default function TiketScreen({ navigation }) {
     const pickImage = async (mode = 'create') => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Izin Diperlukan', 'Aplikasi membutuhkan akses ke galeri.');
+            showToast('Aplikasi membutuhkan akses ke galeri.', 'warning');
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -103,7 +105,7 @@ export default function TiketScreen({ navigation }) {
 
     const handleSubmit = async () => {
         if (!keluhan.trim()) {
-            Alert.alert('Peringatan', 'Keluhan harus diisi.');
+            showToast('Keluhan harus diisi.', 'warning');
             return;
         }
         setHideForm(true);
@@ -121,13 +123,13 @@ export default function TiketScreen({ navigation }) {
             const res = await api.post('/tiket', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            Alert.alert('Berhasil', res.data.message);
+            showToast(res.data.message, 'success');
             setKeluhan('');
             setSelectedImage(null);
             fetchTiket();
         } catch (e) {
             const msg = e.response?.data?.message || 'Gagal mengirim tiket.';
-            Alert.alert('Gagal', msg);
+            showToast(msg, 'error');
         } finally {
             setSubmitting(false);
         }
@@ -135,7 +137,7 @@ export default function TiketScreen({ navigation }) {
 
     const handleEdit = async () => {
         if (!editKeluhan.trim()) {
-            Alert.alert('Peringatan', 'Keluhan harus diisi.');
+            showToast('Keluhan harus diisi.', 'warning');
             return;
         }
         setSubmitting(true);
@@ -152,14 +154,14 @@ export default function TiketScreen({ navigation }) {
             const res = await api.post(`/tiket/${editId}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            Alert.alert('Berhasil', res.data.message);
+            showToast(res.data.message, 'success');
             setEditId(null);
             setEditKeluhan('');
             setEditImage(null);
             fetchTiket();
         } catch (e) {
             const msg = e.response?.data?.message || 'Gagal mengedit tiket.';
-            Alert.alert('Gagal', msg);
+            showToast(msg, 'error');
         } finally {
             setSubmitting(false);
         }

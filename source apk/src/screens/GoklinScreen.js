@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View, Text, ScrollView, StyleSheet, Dimensions, Modal,
-    TouchableOpacity, RefreshControl, Alert, ActivityIndicator,
+    TouchableOpacity, RefreshControl, ActivityIndicator,
     StatusBar, Platform, TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,11 +14,15 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import api, { API_URL } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 import colors from '../theme';
 import LoginModal from '../components/LoginModal';
 import ThemeHeader from '../components/ThemeHeader';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
+const CACHE_KEY = 'goklin_cache';
+const CACHE_TTL = 3600000; // 1 jam
 
 const STATUS_MAP = {
     pending: { label: 'Menunggu Pembayaran', icon: 'time', color: colors.textSecondary },
@@ -65,6 +69,7 @@ export default function GoklinScreen({ navigation }) {
     const [previewImage, setPreviewImage] = useState(null);
     const [searchResults, setSearchResults] = useState([]);
     const [searching, setSearching] = useState(false);
+    const [confirmCancel, setConfirmCancel] = useState(null);
     const searchTimeoutRef = useRef(null);
 
     // Order form
@@ -76,9 +81,13 @@ export default function GoklinScreen({ navigation }) {
     const [submitting, setSubmitting] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
+    const [manualInput, setManualInput] = useState(false); // fallback: input manual untuk web
+    const [manualDate, setManualDate] = useState('');
+    const [manualTime, setManualTime] = useState('');
+    const datetimeRef = useRef(null); // ref untuk baca value datetime-local langsung dari DOM (web)
     const { showToast } = useToast();
 
-    const POLL_INTERVAL = 10000; // 10 detik
+    const POLL_INTERVAL = 30000; // 30 detik
 
     const fetchData = useCallback(async () => {
         try {
@@ -86,11 +95,52 @@ export default function GoklinScreen({ navigation }) {
                 api.get('/goklin/prices'),
                 isLoggedIn ? api.get('/goklin/orders') : Promise.resolve({ data: { data: [] } }),
             ]);
-            setPrices(pricesRes.data.data || []);
-            setOrders(ordersRes.data.data || []);
+            const newPrices = pricesRes.data.data || [];
+            const newOrders = ordersRes.data.data || [];
+            setPrices(newPrices);
+            setOrders(newOrders);
+            await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ prices: newPrices, timestamp: Date.now() }));
         } catch (e) {}
         setLoading(false);
     }, [isLoggedIn]);
+
+    // Refresh orders only (untuk polling & background)
+    const refreshOrders = useCallback(async () => {
+        if (!isLoggedIn) return;
+        try {
+            const res = await api.get('/goklin/orders');
+            setOrders(res.data.data || []);
+        } catch (e) {}
+    }, [isLoggedIn]);
+
+    // Load cached prices instantly saat mount, lalu fetch fresh
+    useEffect(() => {
+        (async () => {
+            try {
+                const cached = await AsyncStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    // Tampilkan cache dulu, biar user ga liat loading kosong
+                    if (parsed.prices?.length) {
+                        setPrices(parsed.prices);
+                        setLoading(false);
+                    }
+                    // Kalau masih fresh (kurang dari 1 jam), skip fetchData
+                    if (parsed.timestamp && Date.now() - parsed.timestamp < CACHE_TTL) {
+                        if (isLoggedIn) {
+                            // Orders tetap di-fresh, prices dari cache
+                            try {
+                                const ordersRes = await api.get('/goklin/orders');
+                                setOrders(ordersRes.data.data || []);
+                            } catch (e) {}
+                        }
+                        return; // Skip fetchData penuh
+                    }
+                }
+            } catch (e) {}
+            fetchData();
+        })();
+    }, [fetchData, isLoggedIn]);
 
     const searchLocation = useCallback(async (query) => {
         if (!query.trim() || query.trim().length < 3) {
@@ -130,14 +180,12 @@ export default function GoklinScreen({ navigation }) {
         setRefreshing(false);
     }, [fetchData]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
-
-    // Polling
+    // Polling — hanya refresh orders, prices dari cache aja
     useEffect(() => {
         if (!isLoggedIn) return;
-        intervalRef.current = setInterval(fetchData, POLL_INTERVAL);
+        intervalRef.current = setInterval(refreshOrders, POLL_INTERVAL);
         return () => clearInterval(intervalRef.current);
-    }, [isLoggedIn, fetchData, POLL_INTERVAL]);
+    }, [isLoggedIn, refreshOrders, POLL_INTERVAL]);
 
     // Auto-location
     useEffect(() => {
@@ -156,14 +204,30 @@ export default function GoklinScreen({ navigation }) {
     const handleSubmit = async () => {
         if (!selectedDurasi) { showToast('Pilih durasi layanan.', 'warning'); return; }
         if (!lokasi.trim()) { showToast('Masukkan lokasi.', 'warning'); return; }
-        if (!jamPesan.trim()) { showToast('Pilih jam pesan.', 'warning'); return; }
+
+        // Web manual input fallback: gabung date + time
+        let value = jamPesan;
+        if (Platform.OS === 'web' && !manualInput) {
+            // Baca langsung dari DOM via querySelector (lebih reliable dari ref di RNW)
+            try {
+                const el = document.querySelector('input[type="datetime-local"]');
+                if (el && el.value) value = el.value;
+            } catch(e) {}
+        }
+        if (Platform.OS === 'web' && manualInput) {
+            if (!manualDate.trim() || !manualTime.trim()) {
+                showToast('Pilih jam pesan.', 'warning'); return;
+            }
+            value = manualDate.trim() + ' ' + manualTime.trim() + ':00';
+        }
+        if (!value.trim()) { showToast('Pilih jam pesan.', 'warning'); return; }
 
         // Format datetime: convert from input format to backend format (Y-m-d H:i:s)
-        let jamFormatted = jamPesan.trim().replace('T', ' ');
+        let jamFormatted = value.trim().replace('T', ' ');
         if (jamFormatted.length === 16) jamFormatted += ':00'; // Append :ss if missing
 
         const price = prices.find(p => p.durasi === selectedDurasi);
-        if (!price) { Alert.alert('Error', 'Harga tidak ditemukan.'); return; }
+        if (!price) { showToast('Harga tidak ditemukan.', 'error'); return; }
         setSubmitting(true);
         try {
             const res = await api.post('/goklin/order', {
@@ -183,7 +247,7 @@ export default function GoklinScreen({ navigation }) {
             setLokasi(''); setJamPesan('');
             fetchData();
         } catch (e) {
-            Alert.alert('Gagal', e.response?.data?.message || 'Gagal membuat pesanan.');
+            showToast(e.response?.data?.message || 'Gagal membuat pesanan.', 'error');
         } finally { setSubmitting(false); }
     };
 
@@ -198,7 +262,7 @@ export default function GoklinScreen({ navigation }) {
     const pickReceipt = async () => {
         if (!payOrder) return;
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') { Alert.alert('Izin Diperlukan', 'Aplikasi membutuhkan akses ke galeri.'); return; }
+        if (status !== 'granted') { showToast('Aplikasi membutuhkan akses ke galeri.', 'warning'); return; }
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 0.8 });
         if (result.canceled || !result.assets[0]) return;
         setPreviewImage(result.assets[0]);
@@ -221,25 +285,23 @@ export default function GoklinScreen({ navigation }) {
             setPreviewImage(null);
             fetchData();
         } catch (e) {
-            Alert.alert('Gagal', e.response?.data?.message || e.message || 'Gagal upload.');
+            showToast(e.response?.data?.message || e.message || 'Gagal upload.', 'error');
         }
         finally { setUploading(false); }
     };
 
     const handleCancel = (order) => {
-        Alert.alert('Batalkan Pesanan', `Yakin ingin membatalkan ${order.kode_order}?`,
-            [{
-                text: 'Ya, Batalkan', style: 'destructive', onPress: async () => {
-                    try {
-                        await api.post(`/goklin/order/${order.id}/cancel`);
-                        Alert.alert('Berhasil', 'Pesanan dibatalkan.');
-                        fetchData();
-                    } catch (e) { Alert.alert('Gagal', 'Tidak dapat membatalkan pesanan.'); }
-                },
-            },
-            { text: 'Tidak', style: 'cancel' },
-            ]
-        );
+        setConfirmCancel(order);
+    };
+
+    const doCancel = async () => {
+        if (!confirmCancel) return;
+        try {
+            await api.post(`/goklin/order/${confirmCancel.id}/cancel`);
+            showToast('Pesanan dibatalkan.', 'success');
+            fetchData();
+        } catch (e) { showToast('Tidak dapat membatalkan pesanan.', 'error'); }
+        finally { setConfirmCancel(null); }
     };
 
     const renderOrder = (order) => {
@@ -306,6 +368,18 @@ export default function GoklinScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
             <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
+
+            {isLoggedIn && (
+                <ConfirmModal
+                    visible={!!confirmCancel}
+                    onClose={() => setConfirmCancel(null)}
+                    title="Batalkan Pesanan"
+                    message={confirmCancel ? `Yakin ingin membatalkan ${confirmCancel.kode_order}?` : ''}
+                    confirmText="Ya, Batalkan"
+                    confirmStyle="destructive"
+                    onConfirm={doCancel}
+                />
+            )}
         </View>
     );
 
@@ -382,17 +456,61 @@ export default function GoklinScreen({ navigation }) {
 
                         <Text style={styles.formLabel}>Jam Pesan</Text>
                         {Platform.OS === 'web' ? (
-                            <input
-                                type="datetime-local"
-                                value={jamPesan}
-                                onChange={(e) => setJamPesan(e.target.value)}
-                                style={{
-                                    width: '100%', padding: 14, fontSize: 14,
-                                    backgroundColor: colors.inputBg, color: colors.text,
-                                    border: `1px solid ${colors.border}`, borderRadius: 12,
-                                    outline: 'none', fontFamily: 'inherit',
-                                }}
-                            />
+                            <>
+                                {!manualInput ? (
+                                    <>
+                                        <input
+                                            ref={datetimeRef}
+                                            type="datetime-local"
+                                            defaultValue={jamPesan}
+                                            onChange={(e) => setJamPesan(e.target.value)}
+                                            onInput={(e) => setJamPesan(e.target.value)}
+                                            onBlur={(e) => e.target.value && setJamPesan(e.target.value)}
+                                            style={{
+                                                width: '100%', padding: 14, fontSize: 14,
+                                                backgroundColor: colors.inputBg, color: colors.text,
+                                                border: `1px solid ${colors.border}`, borderRadius: 12,
+                                                outline: 'none', fontFamily: 'inherit',
+                                                boxSizing: 'border-box',
+                                            }}
+                                            onClick={(e) => e.target.showPicker?.()}
+                                        />
+                                        <TouchableOpacity
+                                            onPress={() => setManualInput(true)}
+                                            style={{ marginTop: 4, alignSelf: 'flex-end' }}
+                                        >
+                                            <Text style={{ color: colors.primary, fontSize: 11 }}>
+                                                Input Manual
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </>
+                                ) : (
+                                    <>
+                                        <TextInput
+                                            style={[styles.input, { marginBottom: 8 }]}
+                                            placeholder="Tanggal (YYYY-MM-DD)"
+                                            placeholderTextColor={colors.textSecondary}
+                                            value={manualDate}
+                                            onChangeText={setManualDate}
+                                        />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Jam (HH:MM)"
+                                            placeholderTextColor={colors.textSecondary}
+                                            value={manualTime}
+                                            onChangeText={setManualTime}
+                                        />
+                                        <TouchableOpacity
+                                            onPress={() => setManualInput(false)}
+                                            style={{ marginTop: 4, alignSelf: 'flex-end' }}
+                                        >
+                                            <Text style={{ color: colors.primary, fontSize: 11 }}>
+                                                Pakai Date Picker
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </>
+                                )}
+                            </>
                         ) : (
                             <>
                                 <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>

@@ -449,9 +449,12 @@ export default function HomeScreen({ navigation }) {
                                                     Total: Rp {belumBayar.reduce((sum, t) => sum + Number(t.nominal || 0), 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
                                                 </Text>
                                                 {belumBayar.some(t => t.catatan_admin) && (
-                                                    <Text style={{ fontSize: 11, color: '#ff6b6b', marginTop: 4, fontStyle: 'italic' }} numberOfLines={2}>
-                                                        ⚠️ {belumBayar.find(t => t.catatan_admin)?.catatan_admin}
-                                                    </Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 4 }}>
+                                                        <Ionicons name="warning" size={11} color="#ff6b6b" style={{ marginTop: 2 }} />
+                                                        <Text style={{ fontSize: 11, color: '#ff6b6b', fontStyle: 'italic', marginLeft: 3, flex: 1 }} numberOfLines={2}>
+                                                            {belumBayar.find(t => t.catatan_admin)?.catatan_admin}
+                                                        </Text>
+                                                    </View>
                                                 )}
                                             </>
                                         ) : (
@@ -549,7 +552,10 @@ export default function HomeScreen({ navigation }) {
                 {/* Informasi */}
                 {informasis.length > 0 && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>📢 Informasi</Text>
+                        <View style={styles.sectionTitleRow}>
+                            <Ionicons name="megaphone" size={16} color={colors.primary} />
+                            <Text style={[styles.sectionTitle, {marginBottom: 0, marginLeft: 6}]}>Informasi</Text>
+                        </View>
                         {informasis.map(info => (
                             <InfoCardItem key={info.id} info={info} />
                         ))}
@@ -559,7 +565,10 @@ export default function HomeScreen({ navigation }) {
                 {/* Carousel Slide */}
                 {slides.length > 0 && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>🖼️ Promo & Info</Text>
+                        <View style={styles.sectionTitleRow}>
+                            <Ionicons name="images" size={16} color={colors.primary} />
+                            <Text style={[styles.sectionTitle, {marginBottom: 0, marginLeft: 6}]}>Promo & Info</Text>
+                        </View>
                         <View style={styles.carousel}>
                             <FlatList
                                 ref={slideRef}
@@ -597,7 +606,10 @@ export default function HomeScreen({ navigation }) {
                 {kategoris.map(kat => (
                     kat.promosis?.length > 0 && (
                         <View key={kat.id} style={styles.section}>
-                            <Text style={styles.sectionTitle}>🏷️ {kat.nama_kategori}</Text>
+                            <View style={styles.sectionTitleRow}>
+                                <Ionicons name="pricetag" size={16} color={colors.primary} />
+                                <Text style={[styles.sectionTitle, {marginBottom: 0, marginLeft: 6}]}>{kat.nama_kategori}</Text>
+                            </View>
                             <FlatList
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -624,7 +636,7 @@ export default function HomeScreen({ navigation }) {
                 ))}
 
                 {/* Berita Terbaru */}
-                {appSettings?.berita_enabled !== 'false' && artikelTerbaru.length > 0 && (
+                {false && appSettings?.berita_enabled !== 'false' && artikelTerbaru.length > 0 && (
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>📰 Berita Terbaru</Text>
@@ -949,6 +961,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
         color: colors.text,
+        marginBottom: 14,
+    },
+    sectionTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: 14,
     },
 

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity,
-    StatusBar, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+    StatusBar, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../api';
+import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 import colors from '../theme';
 
 export default function RubahPasswordScreen({ navigation }) {
@@ -16,18 +18,20 @@ export default function RubahPasswordScreen({ navigation }) {
     const [showOld, setShowOld] = useState(false);
     const [showNew, setShowNew] = useState(false);
     const [showKonfirmasi, setShowKonfirmasi] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const { showToast } = useToast();
 
     const handleSubmit = async () => {
         if (!passwordLama || !passwordBaru || !konfirmasi) {
-            Alert.alert('Error', 'Semua field harus diisi.');
+            showToast('Semua field harus diisi.', 'warning');
             return;
         }
         if (passwordBaru.length < 6) {
-            Alert.alert('Error', 'Password baru minimal 6 karakter.');
+            showToast('Password baru minimal 6 karakter.', 'warning');
             return;
         }
         if (passwordBaru !== konfirmasi) {
-            Alert.alert('Error', 'Konfirmasi password tidak cocok.');
+            showToast('Konfirmasi password tidak cocok.', 'warning');
             return;
         }
 
@@ -37,16 +41,16 @@ export default function RubahPasswordScreen({ navigation }) {
                 password_lama: passwordLama,
                 password_baru: passwordBaru,
             });
-            Alert.alert('Berhasil', res.data.message || 'Password berhasil diperbarui.', [
-                { text: 'OK', onPress: () => navigation.goBack() }
-            ]);
+            setShowSuccess(true);
         } catch (e) {
             const msg = e.response?.data?.message || 'Gagal mengubah password.';
-            Alert.alert('Error', msg);
+            showToast(msg, 'error');
         } finally {
             setLoading(false);
         }
     };
+
+    const goBack = () => navigation.goBack();
 
     return (
         <View style={styles.container}>
@@ -148,6 +152,16 @@ export default function RubahPasswordScreen({ navigation }) {
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
+
+            <ConfirmModal
+                visible={showSuccess}
+                onClose={() => { setShowSuccess(false); goBack(); }}
+                title="Berhasil"
+                message="Password berhasil diperbarui."
+                confirmText="OK"
+                confirmStyle="confirm"
+                onConfirm={goBack}
+            />
         </View>
     );
 }

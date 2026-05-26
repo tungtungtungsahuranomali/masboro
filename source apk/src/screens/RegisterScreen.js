@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-    KeyboardAvoidingView, Platform, Alert, ActivityIndicator, StatusBar,
+    KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar,
     Image, Modal, Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useToast } from '../components/Toast';
 import api, { API_URL } from '../api';
 import colors from '../theme';
 
@@ -24,6 +25,7 @@ export default function RegisterScreen({ navigation }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [kodeRegistrasi, setKodeRegistrasi] = useState('');
     const scrollRef = useRef(null);
+    const { showToast } = useToast();
 
     // Step 1: Data Pribadi
     const [email, setEmail] = useState('');
@@ -175,9 +177,9 @@ export default function RegisterScreen({ navigation }) {
 
     // Step 1 validation
     const validateStep1 = () => {
-        if (!namaPelanggan.trim()) return Alert.alert('Peringatan', 'Nama Pelanggan harus diisi.');
-        if (!alamatPelanggan.trim()) return Alert.alert('Peringatan', 'Alamat Pelanggan harus diisi.');
-        if (!whatsapp1.trim()) return Alert.alert('Peringatan', 'No WhatsApp 1 harus diisi.');
+        if (!namaPelanggan.trim()) return showToast('Nama Pelanggan harus diisi.', 'warning');
+        if (!alamatPelanggan.trim()) return showToast('Alamat Pelanggan harus diisi.', 'warning');
+        if (!whatsapp1.trim()) return showToast('No WhatsApp 1 harus diisi.', 'warning');
         nextStep();
     };
 
@@ -187,50 +189,50 @@ export default function RegisterScreen({ navigation }) {
         try {
             const checkRes = await api.post('/registrasi/check-whatsapp', { whatsapp: whatsapp1 });
             if (!checkRes.data.available) {
-                Alert.alert('Nomor Terdaftar', 'Nomor WhatsApp ini sudah terdaftar. Gunakan nomor lain.');
+                showToast('Nomor WhatsApp ini sudah terdaftar. Gunakan nomor lain.', 'error');
                 setOtpLoading(false);
                 return;
             }
             await api.post('/registrasi/send-otp', { whatsapp: whatsapp1 });
             setOtpSent(true);
-            Alert.alert('OTP Terkirim', 'Kode OTP telah dikirim ke WhatsApp Anda.');
+            showToast('Kode OTP telah dikirim ke WhatsApp Anda.', 'success');
         } catch (e) {
-            Alert.alert('Gagal', e.response?.data?.message || 'Gagal mengirim OTP.');
+            showToast(e.response?.data?.message || 'Gagal mengirim OTP.', 'error');
         }
         setOtpLoading(false);
     };
 
     const handleVerifyOtp = async () => {
-        if (!otp || otp.length !== 6) return Alert.alert('Peringatan', 'Masukkan kode OTP 6 digit.');
+        if (!otp || otp.length !== 6) return showToast('Masukkan kode OTP 6 digit.', 'warning');
         setOtpLoading(true);
         try {
             await api.post('/registrasi/verify-otp', { whatsapp: whatsapp1, otp });
             setOtpVerified(true);
-            Alert.alert('Berhasil', 'Verifikasi WhatsApp berhasil!');
+            showToast('Verifikasi WhatsApp berhasil!', 'success');
         } catch (e) {
-            Alert.alert('Gagal', e.response?.data?.message || 'Kode OTP salah.');
+            showToast(e.response?.data?.message || 'Kode OTP salah.', 'error');
         }
         setOtpLoading(false);
     };
 
     // Step 3 validation
     const validateStep3 = () => {
-        if (!password || password.length < 6) return Alert.alert('Peringatan', 'Password minimal 6 karakter.');
+        if (!password || password.length < 6) return showToast('Password minimal 6 karakter.', 'warning');
         nextStep();
     };
 
     // Step 4 validation
     const validateStep4 = () => {
-        if (!areaCluster) return Alert.alert('Peringatan', 'Pilih area cluster.');
-        if (!jenisTempat) return Alert.alert('Peringatan', 'Pilih jenis tempat tinggal.');
-        if (jenisTempat === 'Sewa' && !namaPemilik.trim()) return Alert.alert('Peringatan', 'Nama pemilik kontrakan harus diisi.');
+        if (!areaCluster) return showToast('Pilih area cluster.', 'warning');
+        if (!jenisTempat) return showToast('Pilih jenis tempat tinggal.', 'warning');
+        if (jenisTempat === 'Sewa' && !namaPemilik.trim()) return showToast('Nama pemilik kontrakan harus diisi.', 'warning');
         nextStep();
     };
 
     // Step 5 validation
     const validateStep5 = () => {
-        if (!selectedInternet) return Alert.alert('Peringatan', 'Pilih paket internet.');
-        if (!tanggalPengajuan) return Alert.alert('Peringatan', 'Tanggal pengajuan harus diisi.');
+        if (!selectedInternet) return showToast('Pilih paket internet.', 'warning');
+        if (!tanggalPengajuan) return showToast('Tanggal pengajuan harus diisi.', 'warning');
         nextStep();
     };
 
@@ -249,7 +251,7 @@ export default function RegisterScreen({ navigation }) {
     const takePhoto = async (setter) => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Izin Kamera', 'Izin kamera diperlukan.');
+            showToast('Izin kamera diperlukan.', 'warning');
             return;
         }
         const result = await ImagePicker.launchCameraAsync({
@@ -264,7 +266,7 @@ export default function RegisterScreen({ navigation }) {
     // Submit
     const handleSubmit = async () => {
         if (!agree1 || !agree2 || !agree3 || !agree4 || !agree5 || !agree6 || !agree7) {
-            return Alert.alert('Peringatan', 'Anda harus menyetujui semua persyaratan.');
+            return showToast('Anda harus menyetujui semua persyaratan.', 'warning');
         }
         setLoading(true);
         try {
@@ -315,10 +317,7 @@ export default function RegisterScreen({ navigation }) {
             setShowSuccess(true);
         } catch (e) {
             const msg = e.response?.data?.message || 'Server sedang sibuk atau koneksi tidak stabil.';
-            Alert.alert(
-                'Pendaftaran Gagal',
-                `${msg}\n\nData Anda masih tersimpan dengan aman di halaman ini. \n\nSilakan klik tombol "Kirim Pendaftaran" sekali lagi.`
-            );
+            showToast(msg, 'error');
         }
         setLoading(false);
     };
@@ -1066,7 +1065,7 @@ export default function RegisterScreen({ navigation }) {
                         onMessage={(event) => {
                             setKoordinat(event.nativeEvent.data);
                             setShowMapModal(false);
-                            Alert.alert('Sukses', 'Koordinat telah diset ke form.');
+                            showToast('Koordinat telah diset ke form.', 'success');
                         }}
                         style={{ flex: 1 }}
                     />

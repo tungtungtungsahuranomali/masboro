@@ -108,7 +108,7 @@ function TabNavigator() {
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
           position: 'absolute',
-          bottom: 10,
+          bottom: 30,
           left: 0,
           right: 0,
         },
@@ -208,7 +208,7 @@ function AppNavigator() {
   }
 
   const linking = {
-    prefixes: ['mentarinet://'],
+    prefixes: ['ligat://'],
     config: {
       screens: {
         Main: {

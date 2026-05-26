@@ -18,7 +18,7 @@ export default function LoginScreen({ navigation }) {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [appName, setAppName] = useState('Mentari Net');
+    const [appName, setAppName] = useState('Ligat');
     const [appTagline, setAppTagline] = useState('Sistem Tagihan Internet');
     const [appLogo, setAppLogo] = useState(null);
 
@@ -27,7 +27,7 @@ export default function LoginScreen({ navigation }) {
             try {
                 const res = await api.get('/app-settings');
                 if (res.data?.data) {
-                    setAppName(res.data.data.app_name || 'Mentari Net');
+                    setAppName(res.data.data.app_name || 'Ligat');
                     setAppTagline(res.data.data.app_tagline || 'Sistem Tagihan Internet');
                     setAppLogo(res.data.data.app_logo || null);
                 }

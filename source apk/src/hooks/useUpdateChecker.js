@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Alert, Platform, Modal, View, Text, StyleSheet } from 'react-native';
+import { Platform, Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Application from 'expo-application';
+import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import colors from '../theme';
 
@@ -23,10 +24,12 @@ const compareVersions = (v1, v2) => {
 export default function useUpdateChecker() {
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const [confirmUpdate, setConfirmUpdate] = useState(null); // { version, download_url }
+    const [errorInfo, setErrorInfo] = useState(null); // { title, message }
 
     const downloadAndInstall = async (url) => {
         if (Platform.OS !== 'android') {
-            Alert.alert('Info', 'Auto-update hanya tersedia untuk Android.');
+            setErrorInfo({ title: 'Info', message: 'Auto-update hanya tersedia untuk Android.' });
             return;
         }
 
@@ -34,7 +37,7 @@ export default function useUpdateChecker() {
             setIsDownloading(true);
             setDownloadProgress(0);
 
-            const fileUri = FileSystemLegacy.documentDirectory + 'mentari-update.apk';
+            const fileUri = FileSystemLegacy.documentDirectory + 'ligat-update.apk';
 
             const downloadResumable = FileSystemLegacy.createDownloadResumable(
                 url,
@@ -59,12 +62,12 @@ export default function useUpdateChecker() {
                     type: 'application/vnd.android.package-archive',
                 });
             } catch (intentErr) {
-                Alert.alert('Instalasi Gagal', 'Gagal membuka halaman instalasi aplikasi.');
+                setErrorInfo({ title: 'Instalasi Gagal', message: 'Gagal membuka halaman instalasi aplikasi.' });
             }
 
         } catch (e) {
             setIsDownloading(false);
-            Alert.alert('Gagal', 'Gagal mengunduh update: ' + e.message);
+            setErrorInfo({ title: 'Gagal', message: 'Gagal mengunduh update: ' + e.message });
         }
     };
 
@@ -77,17 +80,7 @@ export default function useUpdateChecker() {
                 if (!version || !download_url) return;
 
                 if (compareVersions(version, LOCAL_VERSION) > 0) {
-                    Alert.alert(
-                        'Update Tersedia',
-                        `Versi baru ${version} tersedia. Update sekarang?`,
-                        [
-                            { text: 'Nanti', style: 'cancel' },
-                            {
-                                text: 'Update',
-                                onPress: () => downloadAndInstall(download_url),
-                            },
-                        ]
-                    );
+                    setConfirmUpdate({ version, download_url });
                 }
             } catch (e) {
                 // Gagal cek update — abaikan saja
@@ -99,23 +92,75 @@ export default function useUpdateChecker() {
     }, []);
 
     const updateModalElement = (
-        <Modal transparent visible={isDownloading} animationType="fade">
-            <View style={styles.modalBg}>
-                <View style={styles.modalContainer}>
-                    <Text style={styles.modalTitle}>Mengunduh Update</Text>
-                    <Text style={styles.modalSub}>Mohon tunggu, jangan tutup aplikasi...</Text>
+        <>
+            {/* Download Progress Modal */}
+            <Modal transparent visible={isDownloading} animationType="fade">
+                <View style={styles.modalBg}>
+                    <View style={styles.modalContainer}>
+                        <Text style={styles.modalTitle}>Mengunduh Update</Text>
+                        <Text style={styles.modalSub}>Mohon tunggu, jangan tutup aplikasi...</Text>
 
-                    <View style={styles.progressWrap}>
-                        <View style={[styles.progressBar, { width: `${downloadProgress * 100}%` }]} />
+                        <View style={styles.progressWrap}>
+                            <View style={[styles.progressBar, { width: `${downloadProgress * 100}%` }]} />
+                        </View>
+                        <Text style={styles.progressText}>{Math.round(downloadProgress * 100)}%</Text>
+
+                        {downloadProgress === 1 && (
+                            <Text style={styles.installText}>Membuka installer...</Text>
+                        )}
                     </View>
-                    <Text style={styles.progressText}>{Math.round(downloadProgress * 100)}%</Text>
-
-                    {downloadProgress === 1 && (
-                        <Text style={styles.installText}>Membuka installer...</Text>
-                    )}
                 </View>
-            </View>
-        </Modal>
+            </Modal>
+
+            {/* Update Confirmation Modal */}
+            <Modal transparent visible={!!confirmUpdate} animationType="fade"
+                onRequestClose={() => setConfirmUpdate(null)}>
+                <View style={styles.modalBg}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.iconWrap}>
+                            <Ionicons name="download-outline" size={40} color={colors.primary} />
+                        </View>
+                        <Text style={styles.modalTitle}>Update Tersedia</Text>
+                        <Text style={styles.modalSub}>
+                            Versi baru {confirmUpdate?.version} tersedia. Update sekarang?
+                        </Text>
+
+                        <View style={styles.btnRow}>
+                            <TouchableOpacity style={styles.btnCancel} onPress={() => setConfirmUpdate(null)}>
+                                <Text style={styles.btnCancelText}>Nanti</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.btnConfirm}
+                                onPress={() => {
+                                    const url = confirmUpdate?.download_url;
+                                    setConfirmUpdate(null);
+                                    if (url) downloadAndInstall(url);
+                                }}>
+                                <Ionicons name="cloud-download" size={18} color="#fff" />
+                                <Text style={styles.btnConfirmText}>  Update</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Error Modal */}
+            <Modal transparent visible={!!errorInfo} animationType="fade"
+                onRequestClose={() => setErrorInfo(null)}>
+                <View style={styles.modalBg}>
+                    <View style={styles.modalContainer}>
+                        <View style={[styles.iconWrap, { backgroundColor: 'rgba(231,76,60,0.15)' }]}>
+                            <Ionicons name="alert-circle" size={40} color={colors.danger} />
+                        </View>
+                        <Text style={styles.modalTitle}>{errorInfo?.title || 'Error'}</Text>
+                        <Text style={styles.modalSub}>{errorInfo?.message || ''}</Text>
+
+                        <TouchableOpacity style={styles.btnConfirm} onPress={() => setErrorInfo(null)}>
+                            <Text style={styles.btnConfirmText}>OK</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </>
     );
 
     return { updateModalElement };
@@ -131,32 +176,43 @@ const styles = StyleSheet.create({
     },
     modalContainer: {
         width: '100%',
-        backgroundColor: colors.white,
+        backgroundColor: colors.card,
         borderRadius: 16,
         padding: 24,
         alignItems: 'center',
         elevation: 8,
-        shadowColor: colors.shadow,
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 10,
     },
+    iconWrap: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: 'rgba(229,167,27,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
     modalTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#000000',
+        color: colors.text,
         marginBottom: 8,
+        textAlign: 'center',
     },
     modalSub: {
         fontSize: 13,
-        color: '#64748b',
+        color: colors.textSecondary,
         marginBottom: 20,
         textAlign: 'center',
+        lineHeight: 20,
     },
     progressWrap: {
         width: '100%',
         height: 12,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: colors.surface,
         borderRadius: 6,
         overflow: 'hidden',
         marginBottom: 12,
@@ -175,5 +231,37 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: colors.success,
         fontWeight: 'bold',
-    }
+    },
+    btnRow: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    btnCancel: {
+        flex: 1,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: colors.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    btnCancelText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textSecondary,
+    },
+    btnConfirm: {
+        flex: 1,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexDirection: 'row',
+    },
+    btnConfirmText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
+    },
 });

@@ -243,7 +243,7 @@ export default function SpeedTestScreen({ navigation }) {
                 </TouchableOpacity>
 
                 <Text style={styles.disclaimer}>
-                    Tes kecepatan mengukur koneksi antara perangkat Anda dan server Mentari. Hasil dapat bervariasi tergantung kondisi jaringan.
+                    Tes kecepatan mengukur koneksi antara perangkat Anda dan server Ligat. Hasil dapat bervariasi tergantung kondisi jaringan.
                 </Text>
             </LinearGradient>
         </View>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, FlatList, StyleSheet, TouchableOpacity,
-    Alert, RefreshControl, ActivityIndicator, Platform, StatusBar
+    RefreshControl, ActivityIndicator, Platform, StatusBar
 } from 'react-native';
 import { Image } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 import colors from '../theme';
 import Skeleton from '../components/Skeleton';
 import ThemeHeader from '../components/ThemeHeader';
@@ -26,8 +28,11 @@ export default function TagihanScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [payingId, setPayingId] = useState(null);
     const [showLogin, setShowLogin] = useState(false);
+    const [confirmBayar, setConfirmBayar] = useState(null);
+    const [confirmAsset, setConfirmAsset] = useState(null);
 
     const isLoggedIn = !!token;
+    const { showToast } = useToast();
 
     const fetchTagihan = async () => {
         if (!isLoggedIn) {
@@ -73,7 +78,7 @@ export default function TagihanScreen({ navigation }) {
         // Step 1: Pick image
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Izin Diperlukan', 'Aplikasi membutuhkan akses ke galeri untuk upload bukti bayar.');
+            showToast('Aplikasi membutuhkan akses ke galeri untuk upload bukti bayar.', 'warning');
             return;
         }
 
@@ -87,38 +92,37 @@ export default function TagihanScreen({ navigation }) {
 
         const asset = result.assets[0];
 
-        Alert.alert(
-            'Konfirmasi Pembayaran',
-            `Kirim bukti bayar untuk tagihan ${tagihan.kode_tagihan}\nBank: ${namaBank || '-'}\nNomor Rekening/VA: ${noVa || '-'}\nA.n: ${atasNama || '-'}\nNominal: Rp ${formatRupiah(tagihan.nominal)}`,
-            [
-                { text: 'Batal', style: 'cancel' },
-                {
-                    text: 'Kirim',
-                    onPress: async () => {
-                        setPayingId(tagihan.id);
-                        try {
-                            const formData = new FormData();
-                            formData.append('bukti_bayar', {
-                                uri: asset.uri,
-                                type: 'image/jpeg',
-                                name: 'bukti_bayar.jpg',
-                            });
+        // Step 2: Show confirmation modal
+        setConfirmBayar(tagihan);
+        setConfirmAsset(asset);
+    };
 
-                            const res = await api.post(`/tagihan/${tagihan.id}/bayar`, formData, {
-                                headers: { 'Content-Type': 'multipart/form-data' },
-                            });
-                            Alert.alert('Berhasil', res.data.message);
-                            fetchTagihan();
-                        } catch (e) {
-                            const msg = e.response?.data?.message || 'Gagal memproses pembayaran.';
-                            Alert.alert('Gagal', msg);
-                        } finally {
-                            setPayingId(null);
-                        }
-                    },
-                },
-            ]
-        );
+    const doBayar = async () => {
+        if (!confirmBayar || !confirmAsset) return;
+        const tagihan = confirmBayar;
+        const asset = confirmAsset;
+        setConfirmBayar(null);
+        setConfirmAsset(null);
+        setPayingId(tagihan.id);
+        try {
+            const formData = new FormData();
+            formData.append('bukti_bayar', {
+                uri: asset.uri,
+                type: 'image/jpeg',
+                name: 'bukti_bayar.jpg',
+            });
+
+            const res = await api.post(`/tagihan/${tagihan.id}/bayar`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            showToast(res.data.message, 'success');
+            fetchTagihan();
+        } catch (e) {
+            const msg = e.response?.data?.message || 'Gagal memproses pembayaran.';
+            showToast(msg, 'error');
+        } finally {
+            setPayingId(null);
+        }
     };
 
     const formatRupiah = (num) => {
@@ -217,7 +221,7 @@ export default function TagihanScreen({ navigation }) {
                                         style={{ flexDirection: 'row', alignItems: 'center' }}
                                         onPress={() => {
                                             Clipboard.setStringAsync(noVa);
-                                            Alert.alert('Berhasil', 'Nomor Rekening/VA disalin.');
+                                            showToast('Nomor Rekening/VA disalin.', 'success');
                                         }}
                                     >
                                         <Text style={[styles.cardValue, { letterSpacing: 1 }]}>{noVa}</Text>
@@ -355,6 +359,19 @@ export default function TagihanScreen({ navigation }) {
             />
 
             <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
+            <ConfirmModal
+                visible={!!confirmBayar}
+                onClose={() => { setConfirmBayar(null); setConfirmAsset(null); }}
+                title="Konfirmasi Pembayaran"
+                message={confirmBayar ? `Kirim bukti bayar untuk tagihan ${confirmBayar.kode_tagihan}
+Bank: ${namaBank || '-'}
+No. Rek/VA: ${noVa || '-'}
+A.n: ${atasNama || '-'}
+Nominal: Rp ${formatRupiah(confirmBayar.nominal)}` : ''}
+                confirmText="Kirim"
+                confirmStyle="confirm"
+                onConfirm={doBayar}
+            />
         </View>
     );
 }

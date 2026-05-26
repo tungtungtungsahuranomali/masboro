@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, ScrollView, StyleSheet, Dimensions, Modal,
-    TouchableOpacity, RefreshControl, ActivityIndicator, Alert,
+    TouchableOpacity, RefreshControl, ActivityIndicator,
     StatusBar, Platform, TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import api, { API_URL, DEFAULT_API_URL, updateBaseURL, resetBaseURL } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 import colors from '../theme';
 import Skeleton from '../components/Skeleton';
 import ThemeHeader from '../components/ThemeHeader';
@@ -30,8 +32,10 @@ export default function ProfilScreen({ navigation }) {
     const [showDevOptions, setShowDevOptions] = useState(false);
     const [customUrl, setCustomUrl] = useState('');
     const [saving, setSaving] = useState(false);
+    const [confirmLogout, setConfirmLogout] = useState(false);
 
     const isLoggedIn = !!token;
+    const { showToast } = useToast();
 
     const getImageUrl = (path) => {
         const base = API_URL.replace('/api', '');
@@ -64,7 +68,7 @@ export default function ProfilScreen({ navigation }) {
     const pickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Izin Diperlukan', 'Aplikasi membutuhkan akses ke galeri.');
+            showToast('Aplikasi membutuhkan akses ke galeri.', 'warning');
             return;
         }
 
@@ -95,19 +99,16 @@ export default function ProfilScreen({ navigation }) {
             });
 
             setPelanggan(prev => ({ ...prev, foto_profil: res.data.data.foto_profil }));
-            Alert.alert('Berhasil', 'Foto profil berhasil diperbarui.');
+            showToast('Foto profil berhasil diperbarui.', 'success');
         } catch (e) {
-            Alert.alert('Error', 'Gagal upload foto profil.');
+            showToast('Gagal upload foto profil.', 'error');
         } finally {
             setUploading(false);
         }
     };
 
     const handleLogout = () => {
-        Alert.alert('Logout', 'Yakin ingin keluar?', [
-            { text: 'Batal', style: 'cancel' },
-            { text: 'Logout', style: 'destructive', onPress: logout },
-        ]);
+        setConfirmLogout(true);
     };
 
     if (loading) {
@@ -187,13 +188,13 @@ export default function ProfilScreen({ navigation }) {
         setSaving(true);
         await updateBaseURL(customUrl.trim());
         setSaving(false);
-        Alert.alert('Berhasil', 'URL API berhasil diperbarui.');
+        showToast('URL API berhasil diperbarui.', 'success');
     };
 
     const handleResetUrl = async () => {
         await resetBaseURL();
         setCustomUrl(DEFAULT_API_URL);
-        Alert.alert('Berhasil', 'URL API dikembalikan ke default.');
+        showToast('URL API dikembalikan ke default.', 'success');
     };
 
     const renderDevOptions = () => (
@@ -405,7 +406,7 @@ export default function ProfilScreen({ navigation }) {
                             onPress={() => {
                                 if (pelanggan?.no_va) {
                                     Clipboard.setStringAsync(pelanggan.no_va);
-                                    Alert.alert('Berhasil', 'Nomor Rek/VA berhasil disalin.');
+                                    showToast('Nomor Rek/VA berhasil disalin.', 'success');
                                 }
                             }}
                         >
@@ -528,6 +529,16 @@ export default function ProfilScreen({ navigation }) {
             </Modal>
 
             <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
+            <ConfirmModal
+                visible={confirmLogout}
+                onClose={() => setConfirmLogout(false)}
+                title="Logout"
+                message="Yakin ingin keluar?"
+                confirmText="Logout"
+                cancelText="Batal"
+                confirmStyle="destructive"
+                onConfirm={logout}
+            />
         </View>
     );
 }
