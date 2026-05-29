@@ -368,18 +368,6 @@ export default function GoklinScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
             <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} navigation={navigation} />
-
-            {isLoggedIn && (
-                <ConfirmModal
-                    visible={!!confirmCancel}
-                    onClose={() => setConfirmCancel(null)}
-                    title="Batalkan Pesanan"
-                    message={confirmCancel ? `Yakin ingin membatalkan ${confirmCancel.kode_order}?` : ''}
-                    confirmText="Ya, Batalkan"
-                    confirmStyle="destructive"
-                    onConfirm={doCancel}
-                />
-            )}
         </View>
     );
 
@@ -688,6 +676,16 @@ export default function GoklinScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
+
+            <ConfirmModal
+                visible={!!confirmCancel}
+                onClose={() => setConfirmCancel(null)}
+                title="Batalkan Pesanan"
+                message={confirmCancel ? `Yakin ingin membatalkan ${confirmCancel.kode_order}?` : ''}
+                confirmText="Ya, Batalkan"
+                confirmStyle="destructive"
+                onConfirm={doCancel}
+            />
         </View>
     );
 }

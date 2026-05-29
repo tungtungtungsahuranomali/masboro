@@ -17,6 +17,7 @@ export default [
                 clearInterval: "readonly",
                 fetch: "readonly",
                 FormData: "readonly",
+                document: "readonly",
                 __DEV__: "readonly",
             },
         },
