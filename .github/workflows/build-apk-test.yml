@@ -71,17 +71,14 @@ jobs:
       - name: Configure bundling for debug variant
         working-directory: source apk/android
         run: |
-          # Add debuggableVariants=[] to force Metro bundling for debug
           python3 -c "
-import re
-with open('app/build.gradle','r') as f:
-    content = f.read()
-# Add debuggableVariants = [] after 'react {'
-content = content.replace('react {', 'react {\n    debuggableVariants = []')
-with open('app/build.gradle','w') as f:
-    f.write(content)
+with open('app/build.gradle') as f:
+    c = f.read()
+c = c.replace('react {', 'react {\n    debuggableVariants = []', 1)
+with open('app/build.gradle', 'w') as f:
+    f.write(c)
 "
-          grep "debuggableVariants" app/build.gradle
+          grep debuggable app/build.gradle
 
       - name: Build ${{ inputs.build-type == 'release' && 'Release' || 'Debug' }} APK & AAB
         working-directory: source apk/android
