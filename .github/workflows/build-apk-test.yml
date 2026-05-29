@@ -68,11 +68,19 @@ jobs:
         working-directory: source apk
         run: npx expo prebuild --platform android --clean
 
-      - name: Enable JS bundling for debug build
+      - name: Configure bundling for debug variant
         working-directory: source apk/android
         run: |
-          # Force Metro to bundle JS for debug variant (default skips bundling for debug)
-          sed -i "s|// debuggableVariants = \\[\"liteDebug\", \"prodDebug\"\\]|debuggableVariants = []|" app/build.gradle
+          # Add debuggableVariants=[] to force Metro bundling for debug
+          python3 -c "
+import re
+with open('app/build.gradle','r') as f:
+    content = f.read()
+# Add debuggableVariants = [] after 'react {'
+content = content.replace('react {', 'react {\n    debuggableVariants = []')
+with open('app/build.gradle','w') as f:
+    f.write(content)
+"
           grep "debuggableVariants" app/build.gradle
 
       - name: Build ${{ inputs.build-type == 'release' && 'Release' || 'Debug' }} APK & AAB
