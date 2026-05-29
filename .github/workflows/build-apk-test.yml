@@ -68,6 +68,11 @@ jobs:
         working-directory: source apk
         run: npx expo prebuild --platform android --clean
 
+      - name: Enable JS bundling for debug build
+        working-directory: source apk/android
+        run: |
+          echo "bundleInDebug=true" >> gradle.properties
+
       - name: Build ${{ inputs.build-type == 'release' && 'Release' || 'Debug' }} APK & AAB
         working-directory: source apk/android
         run: |
