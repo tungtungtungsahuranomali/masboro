@@ -71,7 +71,9 @@ jobs:
       - name: Enable JS bundling for debug build
         working-directory: source apk/android
         run: |
-          echo "bundleInDebug=true" >> gradle.properties
+          # Force Metro to bundle JS for debug variant (default skips bundling for debug)
+          sed -i "s|// debuggableVariants = \\[\"liteDebug\", \"prodDebug\"\\]|debuggableVariants = []|" app/build.gradle
+          grep "debuggableVariants" app/build.gradle
 
       - name: Build ${{ inputs.build-type == 'release' && 'Release' || 'Debug' }} APK & AAB
         working-directory: source apk/android
