@@ -72,7 +72,7 @@ jobs:
         working-directory: source apk
         run: npx expo export --platform android
 
-      - name: Inject bundle into Android assets
+      - name: Inject bundle & assets into Android project
         working-directory: source apk
         run: |
           mkdir -p android/app/src/main/assets
@@ -83,6 +83,12 @@ jobs:
           fi
           echo "Found bundle: $HBC_FILE"
           cp "$HBC_FILE" android/app/src/main/assets/index.android.bundle
+          # Copy resolved assets (icons, images, fonts) from export
+          if [ -d "dist/_expo/static/assets" ]; then
+            mkdir -p android/app/src/main/assets/assets
+            cp -r dist/_expo/static/assets/* android/app/src/main/assets/assets/
+            echo "Copied assets from dist/_expo/static/assets/"
+          fi
           ls -la android/app/src/main/assets/index.android.bundle
 
       - name: Skip Gradle JS bundling (we inject bundle manually)
