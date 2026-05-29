@@ -61,7 +61,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: source apk/android
-          key: expo-prebuild-${{ runner.os }}-${{ hashFiles('source apk/package.json', 'source apk/app.json', 'source apk/package-lock.json') }}
+          key: expo-prebuild-v2-${{ runner.os }}-${{ hashFiles('source apk/package.json', 'source apk/app.json', 'source apk/package-lock.json') }}
 
       - name: Prebuild Android project (if cache miss)
         if: steps.cache-prebuild.outputs.cache-hit != 'true'
