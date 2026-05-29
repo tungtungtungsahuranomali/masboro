@@ -151,8 +151,10 @@ export default function GoklinScreen({ navigation }) {
         setSearching(true);
         try {
             const res = await fetch(
-                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=id`
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=id`,
+                { headers: { 'User-Agent': 'LigatApp/1.0 (admin@ligat.my.id)' } }
             );
+            if (!res.ok) { setSearchResults([]); setSearching(false); return; }
             const data = await res.json();
             setSearchResults(data || []);
         } catch (e) {
