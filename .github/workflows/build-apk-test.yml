@@ -68,35 +68,6 @@ jobs:
         working-directory: source apk
         run: npx expo prebuild --platform android --clean
 
-      - name: Export Hermes bundle
-        working-directory: source apk
-        run: npx expo export --platform android
-
-      - name: Inject bundle & assets into Android project
-        working-directory: source apk
-        run: |
-          mkdir -p android/app/src/main/assets
-          HBC_FILE=$(ls dist/_expo/static/js/android/*.hbc 2>/dev/null | head -1)
-          if [ -z "$HBC_FILE" ]; then
-            echo "ERROR: No .hbc bundle found in dist/"
-            exit 1
-          fi
-          echo "Found bundle: $HBC_FILE"
-          cp "$HBC_FILE" android/app/src/main/assets/index.android.bundle
-          # Copy resolved assets (icons, images, fonts) from export
-          if [ -d "dist/_expo/static/assets" ]; then
-            mkdir -p android/app/src/main/assets/assets
-            cp -r dist/_expo/static/assets/* android/app/src/main/assets/assets/
-            echo "Copied assets from dist/_expo/static/assets/"
-          fi
-          ls -la android/app/src/main/assets/index.android.bundle
-
-      - name: Skip Gradle JS bundling (we inject bundle manually)
-        working-directory: source apk/android
-        run: |
-          echo "react.bundleInDebug=false" >> gradle.properties
-          echo "react.bundleInRelease=false" >> gradle.properties
-
       - name: Build ${{ inputs.build-type == 'release' && 'Release' || 'Debug' }} APK & AAB
         working-directory: source apk/android
         run: |
