@@ -1,8 +1,6 @@
 name: Build Android APK & AAB
 
 on:
-  push:
-    branches: [main, master]
   workflow_dispatch:
     inputs:
       build-type:
