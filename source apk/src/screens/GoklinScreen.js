@@ -348,7 +348,7 @@ export default function GoklinScreen({ navigation }) {
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
             <ThemeHeader style={styles.header}>
-                <Text style={styles.headerTitle}>GoKlin</Text>
+                <Text style={styles.headerTitle}>Jasa Cleaning</Text>
             </ThemeHeader>
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
         </View>
@@ -358,7 +358,7 @@ export default function GoklinScreen({ navigation }) {
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
             <ThemeHeader style={styles.header}>
-                <Text style={styles.headerTitle}>GoKlin</Text>
+                <Text style={styles.headerTitle}>Jasa Cleaning</Text>
             </ThemeHeader>
             <View style={styles.loginPrompt}>
                 <Ionicons name="sparkles" size={64} color={colors.primary} />
@@ -378,7 +378,7 @@ export default function GoklinScreen({ navigation }) {
             <StatusBar barStyle="light-content" backgroundColor={colors.gradientEnd} />
             <ThemeHeader style={styles.header}>
                 <View style={styles.headerRow}>
-                    <Text style={styles.headerTitle}>GoKlin</Text>
+                    <Text style={styles.headerTitle}>Jasa Cleaning</Text>
                     <TouchableOpacity style={styles.newOrderBtn} onPress={() => setShowForm(!showForm)}>
                         <Ionicons name={showForm ? 'list' : 'add'} size={18} color="#fff" />
                         <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>  {showForm ? 'Orderan' : 'Pesan Lagi'}</Text>
