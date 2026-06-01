@@ -18,6 +18,7 @@ export default [
                 fetch: "readonly",
                 FormData: "readonly",
                 document: "readonly",
+                require: "readonly",
                 __DEV__: "readonly",
             },
         },

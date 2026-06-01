@@ -336,7 +336,11 @@ export default function HomeScreen({ navigation }) {
                     ) : (
                         <View style={styles.headerCenter}>
                             <View style={styles.publicLogo}>
-                                <Ionicons name="globe" size={36} color={colors.white} />
+                                <Image
+                                    source={appSettings?.app_logo ? { uri: appSettings.app_logo } : require('../../assets/icon.png')}
+                                    style={{ width: 48, height: 48, borderRadius: 12 }}
+                                    contentFit="contain"
+                                />
                             </View>
                             <Text style={styles.publicAppName}>{appSettings?.app_name || 'LIGAT'}</Text>
                             <Text style={styles.publicTagline}>{appSettings?.app_tagline || 'Manejemen Tiket, Akses & Respons Internet'}</Text>
