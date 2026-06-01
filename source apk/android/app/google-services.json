@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "753008773618",
-    "project_id": "app-ligat",
-    "storage_bucket": "app-ligat.firebasestorage.app"
+    "project_number": "752674933409",
+    "project_id": "ligat-app",
+    "storage_bucket": "ligat-app.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:753008773618:android:f541087cd8c8386fbf436b",
+        "mobilesdk_app_id": "1:752674933409:android:66c1e810deaed0d7d37ee0",
         "android_client_info": {
-          "package_name": "com.ligat"
+          "package_name": "com.ligat.mma"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCQcjbL7B2StOtdb_gPTSW71oA-actHFkI"
+          "current_key": "AIzaSyBj1mR4k2lH-IoPkT60TUUje9jC9j0syJA"
         }
       ],
       "services": {

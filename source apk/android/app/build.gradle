@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.ligat'
+    namespace 'com.ligat.mma'
     defaultConfig {
-        applicationId 'com.ligat'
+        applicationId 'com.ligat.mma'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 129

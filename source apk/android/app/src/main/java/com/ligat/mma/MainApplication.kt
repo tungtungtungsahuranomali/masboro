@@ -1,4 +1,4 @@
-package com.ligat
+package com.ligat.mma
 
 import android.app.Application
 import android.content.res.Configuration

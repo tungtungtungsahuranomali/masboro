@@ -1,4 +1,4 @@
-package com.ligat
+package com.ligat.mma
 
 import android.os.Build
 import android.os.Bundle
