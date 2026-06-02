@@ -33,6 +33,8 @@ export default function ProfilScreen({ navigation }) {
     const [customUrl, setCustomUrl] = useState('');
     const [saving, setSaving] = useState(false);
     const [confirmLogout, setConfirmLogout] = useState(false);
+    const [confirmDeleteAkun, setConfirmDeleteAkun] = useState(false);
+    const [deletingAkun, setDeletingAkun] = useState(false);
 
     const isLoggedIn = !!token;
     const { showToast } = useToast();
@@ -109,6 +111,19 @@ export default function ProfilScreen({ navigation }) {
 
     const handleLogout = () => {
         setConfirmLogout(true);
+    };
+
+    const handleDeleteAkun = async () => {
+        setDeletingAkun(true);
+        try {
+            await api.post('/hapus-akun');
+            showToast('Akun berhasil dihapus.', 'success');
+            logout();
+        } catch (e) {
+            showToast(e.response?.data?.message || 'Gagal menghapus akun.', 'error');
+            setConfirmDeleteAkun(false);
+        }
+        setDeletingAkun(false);
     };
 
     if (loading) {
@@ -471,6 +486,16 @@ export default function ProfilScreen({ navigation }) {
 
                     <View style={styles.divider} />
 
+                    <TouchableOpacity style={styles.menuItem} onPress={() => setConfirmDeleteAkun(true)}>
+                        <View style={[styles.menuIcon, { backgroundColor: '#fef2f2' }]}>
+                            <Ionicons name="trash" size={18} color={colors.danger} />
+                        </View>
+                        <Text style={[styles.menuText, { color: colors.danger }]}>Hapus Akun</Text>
+                        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
+
+                    <View style={styles.divider} />
+
                     <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
                         <View style={[styles.menuIcon, { backgroundColor: '#fef2f2' }]}>
                             <Ionicons name="log-out" size={18} color={colors.danger} />
@@ -538,6 +563,16 @@ export default function ProfilScreen({ navigation }) {
                 cancelText="Batal"
                 confirmStyle="destructive"
                 onConfirm={logout}
+            />
+            <ConfirmModal
+                visible={confirmDeleteAkun}
+                onClose={() => setConfirmDeleteAkun(false)}
+                title="Hapus Akun"
+                message="Akun dan semua data terkait akan dihapus permanen. Yakin?"
+                confirmText={deletingAkun ? 'Menghapus...' : 'Hapus Akun'}
+                cancelText="Batal"
+                confirmStyle="destructive"
+                onConfirm={handleDeleteAkun}
             />
         </View>
     );
