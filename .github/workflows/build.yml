@@ -39,18 +39,26 @@ jobs:
           key: gradle-${{ hashFiles('source apk/android/**/*.gradle*') }}
           restore-keys: gradle-
 
-      - name: Prebuild & Build APK + AAB
+      - name: Generate release keystore & Build APK + AAB
         working-directory: source apk
         run: |
           npx expo prebuild --platform android --clean
           cd android
-          cp ../ligat-release.keystore app/ligat-release.keystore
-          echo "storeFile=ligat-release.keystore" > keystore.properties
-          echo "storePassword=ligat2026" >> keystore.properties
-          echo "keyAlias=ligat" >> keystore.properties
-          echo "keyPassword=ligat2026" >> keystore.properties
-          ./gradlew assembleRelease
-          ./gradlew bundleRelease
+          # Generate release keystore baru
+          keytool -genkey -v -keystore app/ligat-release.keystore -alias ligat \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass ligat2026 -keypass ligat2026 \
+            -dname "CN=Ligat, OU=Development, O=Ligat, L=Jakarta, ST=Jakarta, C=ID"
+          ./gradlew assembleRelease \
+            -PRELEASE_STORE_FILE=app/ligat-release.keystore \
+            -PRELEASE_STORE_PASSWORD=ligat2026 \
+            -PRELEASE_KEY_ALIAS=ligat \
+            -PRELEASE_KEY_PASSWORD=ligat2026
+          ./gradlew bundleRelease \
+            -PRELEASE_STORE_FILE=app/ligat-release.keystore \
+            -PRELEASE_STORE_PASSWORD=ligat2026 \
+            -PRELEASE_KEY_ALIAS=ligat \
+            -PRELEASE_KEY_PASSWORD=ligat2026
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
