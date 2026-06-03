@@ -366,7 +366,7 @@ export default function HomeScreen({ navigation }) {
                         <TouchableOpacity
                             style={styles.infoItem}
                             activeOpacity={0.7}
-                            onPress={() => navigation.navigate('SpeedTest')}
+                            onPress={() => navigation.navigate('InternalContent', { title: 'Speed Test', url: 'https://fast.com/id/' })}
                         >
                             <Ionicons name="speedometer" size={20} color={colors.primary} />
                             <Text style={styles.infoLabel}>Speed Test</Text>
