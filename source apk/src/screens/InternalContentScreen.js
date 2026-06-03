@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, ScrollView, StyleSheet, Dimensions,
     StatusBar, TouchableOpacity, ActivityIndicator,
@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import colors from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -14,9 +15,27 @@ export default function InternalContentScreen({ route, navigation }) {
     const { title, konten, url } = route.params;
     const [webViewHeight, setWebViewHeight] = useState(400);
     const [webLoaded, setWebLoaded] = useState(false);
+    const [token, setToken] = useState(null);
     const webRef = useRef(null);
 
     const isUrlMode = !!url;
+
+    // Load token for auth injection into WebView
+    useEffect(() => {
+        (async () => {
+            try {
+                const t = await AsyncStorage.getItem('token');
+                if (t) setToken(t);
+            } catch (e) {}
+        })();
+    }, []);
+
+    // Inject token ke WebView kalo domain kita punya
+    const getInjectedJS = () => {
+        if (!token || !url) return '';
+        if (!url.includes('ligat.web.id') && !url.includes('ligat.my.id')) return '';
+        return `localStorage.setItem('token', '${token}');`;
+    };
 
     const generateHtml = (content) => {
         return `
@@ -102,6 +121,7 @@ export default function InternalContentScreen({ route, navigation }) {
                     domStorageEnabled={true}
                     startInLoadingState={false}
                     allowsInlineMediaPlayback={true}
+                    injectedJavaScript={getInjectedJS()}
                 />
             </View>
         );
