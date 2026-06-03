@@ -15,8 +15,9 @@ import { useToast } from '../components/Toast';
 import api, { API_URL } from '../api';
 import colors from '../theme';
 
-const AREA_CLUSTERS = ['EKSKLUSIF', 'XLhome', 'MANDIRI', 'FM', 'TANJUNG BALAI KARIMUN', 'MEDAN'];
 const TOTAL_STEPS = 6;
+
+const defaultClusters = ['EKSKLUSIF', 'XLhome', 'MANDIRI', 'FM', 'TANJUNG BALAI KARIMUN', 'MEDAN'];
 
 export default function RegisterScreen({ navigation }) {
     // Form state
@@ -50,6 +51,7 @@ export default function RegisterScreen({ navigation }) {
 
     // Step 4: Area & Tempat Tinggal
     const [areaCluster, setAreaCluster] = useState('');
+    const [areaClusters, setAreaClusters] = useState(defaultClusters);
     const [jenisTempat, setJenisTempat] = useState('');
     const [namaPemilik, setNamaPemilik] = useState('');
     const [alamatPemilik, setAlamatPemilik] = useState('');
@@ -90,7 +92,7 @@ export default function RegisterScreen({ navigation }) {
     useEffect(() => {
         const dataToSave = {
             step, email, namaSales, namaPelanggan, alamatPelanggan, whatsapp1,
-            otpVerified, whatsapp2, password, koordinat, areaCluster, jenisTempat,
+            otpVerified, whatsapp2, password, koordinat, areaClusters, areaCluster, jenisTempat,
             namaPemilik, alamatPemilik, waPemilik, selectedInternet, inginTv,
             selectedTv, inginLainnya, selectedLainnya, tanggalPengajuan,
             agree1, agree2, agree3, agree4, agree5, agree6, agree7,
@@ -99,7 +101,7 @@ export default function RegisterScreen({ navigation }) {
         AsyncStorage.setItem(CACHE_KEY, JSON.stringify(dataToSave)).catch(e => console.log('Error caching data:', e));
     }, [
         step, email, namaSales, namaPelanggan, alamatPelanggan, whatsapp1,
-        otpVerified, whatsapp2, password, koordinat, areaCluster, jenisTempat,
+        otpVerified, whatsapp2, password, koordinat, areaClusters, areaCluster, jenisTempat,
         namaPemilik, alamatPemilik, waPemilik, selectedInternet, inginTv,
         selectedTv, inginLainnya, selectedLainnya, tanggalPengajuan,
         agree1, agree2, agree3, agree4, agree5, agree6, agree7,
@@ -122,6 +124,7 @@ export default function RegisterScreen({ navigation }) {
                 if (data.password) setPassword(data.password);
                 if (data.koordinat) setKoordinat(data.koordinat);
                 if (data.areaCluster) setAreaCluster(data.areaCluster);
+                if (data.areaClusters) setAreaClusters(data.areaClusters);
                 if (data.jenisTempat) setJenisTempat(data.jenisTempat);
                 if (data.namaPemilik) setNamaPemilik(data.namaPemilik);
                 if (data.alamatPemilik) setAlamatPemilik(data.alamatPemilik);
@@ -557,7 +560,7 @@ export default function RegisterScreen({ navigation }) {
         <View>
             <Text style={s.stepTitle}>Area & Tempat Tinggal</Text>
             <Text style={s.stepDesc}>Pilih area layanan dan informasi tempat tinggal.</Text>
-            {renderSelect('Area Cluster Pelanggan', AREA_CLUSTERS, areaCluster, setAreaCluster)}
+            {renderSelect('Area Cluster Pelanggan', areaClusters, areaCluster, setAreaCluster)}
             {renderSelect('Jenis Tempat Tinggal', ['Milik Sendiri', 'Sewa'], jenisTempat, setJenisTempat)}
 
             {jenisTempat === 'Sewa' && (
@@ -601,7 +604,7 @@ export default function RegisterScreen({ navigation }) {
                             </View>
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={s.paketName}>{p.nama_paket}</Text>
+                            <Text style={[s.paketName, (selectedInternet === p.id || selectedTv === p.id || selectedLainnya === p.id) && s.paketNameActive]}>{p.nama_paket}</Text>
                             <Text style={s.paketPrice}>{formatRp(p.harga)}/bulan</Text>
                         </View>
                     </TouchableOpacity>
@@ -630,7 +633,7 @@ export default function RegisterScreen({ navigation }) {
                             </View>
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={s.paketName}>{p.nama_paket}</Text>
+                            <Text style={[s.paketName, (selectedInternet === p.id || selectedTv === p.id || selectedLainnya === p.id) && s.paketNameActive]}>{p.nama_paket}</Text>
                             <Text style={s.paketPrice}>{formatRp(p.harga)}/bulan</Text>
                         </View>
                     </TouchableOpacity>
@@ -659,7 +662,7 @@ export default function RegisterScreen({ navigation }) {
                             </View>
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={s.paketName}>{p.nama_paket}</Text>
+                            <Text style={[s.paketName, (selectedInternet === p.id || selectedTv === p.id || selectedLainnya === p.id) && s.paketNameActive]}>{p.nama_paket}</Text>
                             <Text style={s.paketPrice}>{formatRp(p.harga)}/bulan</Text>
                         </View>
                     </TouchableOpacity>
@@ -1281,7 +1284,6 @@ const s = StyleSheet.create({
         width: '100%',
         borderWidth: 1,
         borderColor: colors.border,
-        color: colors.text,
     },
     otpSuccess: { alignItems: 'center', paddingVertical: 20 },
     otpSuccessText: { fontSize: 16, fontWeight: '700', color: colors.success, marginTop: 8 },
@@ -1337,6 +1339,7 @@ const s = StyleSheet.create({
     radioActive: { borderColor: colors.primary },
     radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.primary },
     paketName: { fontSize: 14, fontWeight: '600', color: colors.text },
+    paketNameActive: { color: '#000' },
     paketPrice: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 2 },
 
     // Yes/No
@@ -1368,7 +1371,7 @@ const s = StyleSheet.create({
         marginTop: 1,
     },
     checkboxActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    checkLabel: { flex: 1, fontSize: 12, color: '#222', lineHeight: 18 },
+    checkLabel: { flex: 1, fontSize: 12, color: colors.text, lineHeight: 18 },
     agreementBox: {
         backgroundColor: colors.bg,
         borderRadius: 12,
@@ -1417,7 +1420,7 @@ const s = StyleSheet.create({
         alignItems: 'center',
     },
     modalBody: { padding: 24, alignItems: 'center' },
-    modalTitle: { fontSize: 24, fontWeight: '800', color: colors.text },
+    modalTitle: { fontSize: 24, fontWeight: '800', color: '#000', textAlign: 'center' },
     modalTitle2: { fontSize: 16, fontWeight: '600', color: colors.primary, marginTop: 4, marginBottom: 12 },
     modalDesc: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
     kodeBox: {
