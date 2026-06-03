@@ -407,12 +407,12 @@ export default function RegisterScreen({ navigation }) {
         </View>
     );
 
-    const renderCheckbox = (label, value, setter) => (
+    const renderCheckbox = (label, value, setter, opts = {}) => (
         <TouchableOpacity style={s.checkRow} onPress={() => setter(!value)}>
             <View style={[s.checkbox, value && s.checkboxActive]}>
                 {value && <Ionicons name="checkmark" size={14} color="#fff" />}
             </View>
-            <Text style={s.checkLabel}>{label}</Text>
+            <Text style={[s.checkLabel, opts.textStyle]}>{label}</Text>
         </TouchableOpacity>
     );
 
@@ -759,7 +759,7 @@ export default function RegisterScreen({ navigation }) {
 
             <View style={s.separatorLine} />
 
-            {renderCheckbox('Dengan ini saya menyatakan bahwa seluruh data telah diisi dengan benar, lengkap dan dapat dipertanggungjawabkan. Formulir ini disetujui untuk diproses lebih lanjut.', agree7, setAgree7)}
+            {renderCheckbox('Dengan ini saya menyatakan bahwa seluruh data telah diisi dengan benar, lengkap dan dapat dipertanggungjawabkan. Formulir ini disetujui untuk diproses lebih lanjut.', agree7, setAgree7, { textStyle: { color: '#000' } })}
 
             <View style={s.navRow}>
                 <TouchableOpacity style={s.prevBtn} onPress={prevStep}>
