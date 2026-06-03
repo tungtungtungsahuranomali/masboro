@@ -86,6 +86,13 @@ export default function RegisterScreen({ navigation }) {
     useEffect(() => {
         loadPackages();
         loadCachedData();
+        // Load area clusters
+        (async () => {
+            try {
+                const res = await api.get('/area-clusters');
+                if (res.data?.data) setAreaClusters(res.data.data);
+            } catch (e) {}
+        })();
     }, []);
 
     // Save to cache whenever relevant states change
