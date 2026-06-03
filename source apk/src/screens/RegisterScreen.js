@@ -668,7 +668,7 @@ export default function RegisterScreen({ navigation }) {
 
             {Platform.OS === 'web' ? (
                 <View style={{ marginBottom: 14 }}>
-                    <Text style={styles.stepLabel}>Tanggal Pengajuan Pasang</Text>
+                    <Text style={s.label}>Tanggal Pengajuan Pasang</Text>
                     <input
                         type="date"
                         value={tanggalPengajuan}
@@ -683,9 +683,9 @@ export default function RegisterScreen({ navigation }) {
                 </View>
             ) : (
                 <>
-                    <Text style={styles.stepLabel}>Tanggal Pengajuan Pasang</Text>
+                    <Text style={s.label}>Tanggal Pengajuan Pasang</Text>
                     <TouchableOpacity
-                        style={[styles.inputRow, { marginBottom: 14 }]}
+                        style={[s.inputWrap, { marginBottom: 14 }]}
                         onPress={() => setShowDatePicker(true)}
                     >
                         <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} style={{ marginRight: 10 }} />
