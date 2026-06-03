@@ -20,6 +20,8 @@ export default function BeritaDetailScreen({ route, navigation }) {
     const [webViewHeight, setWebViewHeight] = useState(300);
 
     const getImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith("http://") || path.startsWith("https://")) return path;
         const base = API_URL.replace('/api', '');
         return `${base}/storage/${path}`;
     };

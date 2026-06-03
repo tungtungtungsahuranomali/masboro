@@ -36,6 +36,8 @@ export default function TiketScreen({ navigation }) {
     const POLL_INTERVAL = 10000;
 
     const getImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith("http://") || path.startsWith("https://")) return path;
         const base = API_URL.replace('/api', '');
         return `${base}/storage/${path}`;
     };
