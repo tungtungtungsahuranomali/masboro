@@ -1273,6 +1273,7 @@ const s = StyleSheet.create({
         fontSize: 24,
         fontWeight: '700',
         letterSpacing: 8,
+        color: '#000',
         backgroundColor: '#fff',
         borderRadius: 12,
         padding: 14,
@@ -1458,6 +1459,6 @@ const s = StyleSheet.create({
     mapTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: colors.text,
+        color: '#000',
     },
 });
