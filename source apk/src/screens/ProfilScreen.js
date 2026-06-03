@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, ScrollView, StyleSheet, Dimensions, Modal,
-    TouchableOpacity, RefreshControl, ActivityIndicator,
+    TouchableOpacity, RefreshControl, ActivityIndicator, Linking,
     StatusBar, Platform, TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -35,6 +35,7 @@ export default function ProfilScreen({ navigation }) {
     const [confirmLogout, setConfirmLogout] = useState(false);
     const [confirmDeleteAkun, setConfirmDeleteAkun] = useState(false);
     const [deletingAkun, setDeletingAkun] = useState(false);
+    const [hapusAkunEnabled, setHapusAkunEnabled] = useState(true);
 
     const isLoggedIn = !!token;
     const { showToast } = useToast();
@@ -65,6 +66,17 @@ export default function ProfilScreen({ navigation }) {
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         fetchProfil();
+    }, []);
+
+    // Fetch hapus_akun_enabled setting
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await api.get('/app-settings');
+                const d = res.data?.data;
+                if (d) setHapusAkunEnabled(d.hapus_akun_enabled !== 'false');
+            } catch (e) {}
+        })();
     }, []);
 
     const pickImage = async () => {
@@ -486,6 +498,7 @@ export default function ProfilScreen({ navigation }) {
 
                     <View style={styles.divider} />
 
+                    {/* Hapus Akun (hidden — akan diaktifkan nanti)
                     <TouchableOpacity style={styles.menuItem} onPress={() => setConfirmDeleteAkun(true)}>
                         <View style={[styles.menuIcon, { backgroundColor: '#fef2f2' }]}>
                             <Ionicons name="trash" size={18} color={colors.danger} />
@@ -494,7 +507,31 @@ export default function ProfilScreen({ navigation }) {
                         <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
                     </TouchableOpacity>
 
+                    <View style={styles.divider} /> */}
+
+                    <TouchableOpacity style={styles.menuItem} onPress={() => Linking.openURL('https://ligat.web.id/privacy.html')}>
+                        <View style={[styles.menuIcon, { backgroundColor: 'rgba(229,167,27,0.15)' }]}>
+                            <Ionicons name="document-text" size={18} color={colors.primary} />
+                        </View>
+                        <Text style={styles.menuText}>Kebijakan Privasi</Text>
+                        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
+
                     <View style={styles.divider} />
+
+                    {hapusAkunEnabled && (
+                        <>
+                            <TouchableOpacity style={styles.menuItem} onPress={() => setConfirmDeleteAkun(true)}>
+                                <View style={[styles.menuIcon, { backgroundColor: '#fef2f2' }]}>
+                                    <Ionicons name="trash" size={18} color={colors.danger} />
+                                </View>
+                                <Text style={[styles.menuText, { color: colors.danger }]}>Hapus Akun</Text>
+                                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+                            </TouchableOpacity>
+
+                            <View style={styles.divider} />
+                        </>
+                    )}
 
                     <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
                         <View style={[styles.menuIcon, { backgroundColor: '#fef2f2' }]}>
@@ -564,16 +601,18 @@ export default function ProfilScreen({ navigation }) {
                 confirmStyle="destructive"
                 onConfirm={logout}
             />
-            <ConfirmModal
-                visible={confirmDeleteAkun}
-                onClose={() => setConfirmDeleteAkun(false)}
-                title="Hapus Akun"
-                message="Akun dan semua data terkait akan dihapus permanen. Yakin?"
-                confirmText={deletingAkun ? 'Menghapus...' : 'Hapus Akun'}
-                cancelText="Batal"
-                confirmStyle="destructive"
-                onConfirm={handleDeleteAkun}
-            />
+            {hapusAkunEnabled && (
+                <ConfirmModal
+                    visible={confirmDeleteAkun}
+                    onClose={() => setConfirmDeleteAkun(false)}
+                    title="Hapus Akun"
+                    message="Akun dan semua data terkait akan dihapus permanen. Yakin?"
+                    confirmText={deletingAkun ? 'Menghapus...' : 'Hapus Akun'}
+                    cancelText="Batal"
+                    confirmStyle="destructive"
+                    onConfirm={handleDeleteAkun}
+                />
+            )}
         </View>
     );
 }
