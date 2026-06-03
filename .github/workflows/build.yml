@@ -67,3 +67,9 @@ jobs:
           path: |
             source apk/android/app/build/outputs/apk/release/*.apk
             source apk/android/app/build/outputs/bundle/release/*.aab
+
+      - name: Upload release keystore (save for future builds)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ligat-release-keystore
+          path: source apk/android/app/ligat-release.keystore
