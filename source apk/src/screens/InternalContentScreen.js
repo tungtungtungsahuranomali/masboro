@@ -30,10 +30,13 @@ export default function InternalContentScreen({ route, navigation }) {
         })();
     }, []);
 
+    // Cek apakah perlu tunggu token sebelum render WebView
+    const needsToken = url && (url.includes('ligat.web.id') || url.includes('ligat.my.id'));
+    const ready = !needsToken || token !== null;
+
     // Inject token ke WebView kalo domain kita punya
     const getInjectedJS = () => {
-        if (!token || !url) return '';
-        if (!url.includes('ligat.web.id') && !url.includes('ligat.my.id')) return '';
+        if (!token || !needsToken) return '';
         return `localStorage.setItem('token', '${token}');`;
     };
 
@@ -87,6 +90,23 @@ export default function InternalContentScreen({ route, navigation }) {
 
     // URL mode: full screen webview with native feel
     if (isUrlMode) {
+        if (!ready) {
+            return (
+                <View style={styles.urlContainer}>
+                    <StatusBar barStyle="light-content" backgroundColor="#0D0D15" />
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                            <Ionicons name="arrow-back" size={22} color="#fff" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle} numberOfLines={1}>{title || 'Loading...'}</Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+                    <View style={styles.urlLoader}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                    </View>
+                </View>
+            );
+        }
         return (
             <View style={styles.urlContainer}>
                 <StatusBar barStyle="light-content" backgroundColor="#0D0D15" />
