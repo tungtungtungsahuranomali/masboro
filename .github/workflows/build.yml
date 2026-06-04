@@ -77,4 +77,3 @@ with open('app/build.gradle', 'w') as f:
         with:
           name: ligat-release-keystore
           path: source apk/android/app/ligat-release.keystore
-#
