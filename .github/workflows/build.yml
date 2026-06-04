@@ -70,10 +70,16 @@ jobs:
           AAB=$(find app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -1)
           echo "AAB: $AAB"
           zip -d "$AAB" "META-INF/ANDROIDD.*" 2>/dev/null || true
-          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
-            -keystore app/ligat-release.keystore \
-            -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
-            "$AAB" ${{ env.KEY_ALIAS }}
+          APKSIGNER=$(find /usr/local/lib/android/sdk -name apksigner 2>/dev/null | head -1)
+          $APKSIGNER sign --min-sdk-version 24 \
+            --ks app/ligat-release.keystore \
+            --ks-pass pass:${{ env.KEYSTORE_PASSWORD }} \
+            --ks-key-alias ${{ env.KEY_ALIAS }} \
+            --key-pass pass:${{ env.KEY_PASSWORD }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            "$AAB"
 
       - name: Sign APK with release keystore
         working-directory: source apk/android
@@ -81,10 +87,21 @@ jobs:
           APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
           echo "APK: $APK"
           zip -d "$APK" "META-INF/ANDROIDD.*" 2>/dev/null || true
-          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
-            -keystore app/ligat-release.keystore \
-            -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
-            "$APK" ${{ env.KEY_ALIAS }}
+          SDK=/usr/local/lib/android/sdk
+          APKSIGNER=$(find $SDK -name apksigner 2>/dev/null | head -1)
+          ZIPALIGN=$(find $SDK -name zipalign 2>/dev/null | head -1)
+          ALIGNED="${APK%.*}-aligned.apk"
+          $ZIPALIGN -p -f -v 4 "$APK" "$ALIGNED"
+          mv "$ALIGNED" "$APK"
+          $APKSIGNER sign --min-sdk-version 24 \
+            --ks app/ligat-release.keystore \
+            --ks-pass pass:${{ env.KEYSTORE_PASSWORD }} \
+            --ks-key-alias ${{ env.KEY_ALIAS }} \
+            --key-pass pass:${{ env.KEY_PASSWORD }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
