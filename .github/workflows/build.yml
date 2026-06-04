@@ -60,54 +60,31 @@ jobs:
             echo "Generated new keystore (valid 10000 days)"
           fi
 
-      - name: Build APK (unsigned)
+      - name: Build APK + AAB (1 ABI)
         working-directory: source apk/android
-        run: ANDROID_SDK_ROOT=/usr/local/lib/android/sdk ./gradlew assembleRelease
+        run: ./gradlew assembleRelease bundleRelease -PreactNativeArchitectures=arm64-v8a --no-configuration-cache
 
-      - name: Build AAB (unsigned)
-        working-directory: source apk/android
-        run: ANDROID_SDK_ROOT=/usr/local/lib/android/sdk ./gradlew bundleRelease
-
-      - name: Sign APK + AAB with release keystore
+      - name: Sign AAB with release keystore
         working-directory: source apk/android
         run: |
-          KS="app/ligat-release.keystore"
-          
-          # Find apksigner
-          APKSIGNER=$(find /usr/local/lib/android/sdk -name apksigner 2>/dev/null | head -1)
-          if [ -z "$APKSIGNER" ]; then
-            # Try ANDROID_HOME
-            APKSIGNER=$(find $ANDROID_HOME -name apksigner 2>/dev/null | head -1)
-          fi
-          if [ -z "$APKSIGNER" ]; then
-            # Try default Ubuntu location
-            APKSIGNER=$(find / -name apksigner -type f 2>/dev/null | head -1)
-          fi
-          echo "apksigner: $APKSIGNER"
-          
-          if [ -z "$APKSIGNER" ]; then
-            echo "ERROR: apksigner not found! Using jarsigner instead."
-            JARSIGNER="jarsigner"
-            APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
-            AAB=$(find app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -1)
-            [ -n "$APK" ] && $JARSIGNER -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore "$KS" -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
-              "$APK" ${{ env.KEY_ALIAS }}
-            [ -n "$AAB" ] && $JARSIGNER -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore "$KS" -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
-              "$AAB" ${{ env.KEY_ALIAS }}
-          else
-            APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
-            AAB=$(find app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -1)
-            echo "APK found: $APK"
-            echo "AAB found: $AAB"
-            [ -n "$APK" ] && $APKSIGNER sign --min-sdk-version 24 --ks "$KS" --ks-pass pass:${{ env.KEYSTORE_PASSWORD }} \
-              --ks-key-alias ${{ env.KEY_ALIAS }} --key-pass pass:${{ env.KEY_PASSWORD }} \
-              --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true "$APK" || echo "APK sign failed"
-            [ -n "$AAB" ] && $APKSIGNER sign --min-sdk-version 24 --ks "$KS" --ks-pass pass:${{ env.KEYSTORE_PASSWORD }} \
-              --ks-key-alias ${{ env.KEY_ALIAS }} --key-pass pass:${{ env.KEY_PASSWORD }} \
-              --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true "$AAB" || echo "AAB sign failed"
-          fi
+          AAB=$(find app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -1)
+          echo "AAB: $AAB"
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore app/ligat-release.keystore \
+            -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
+            "$AAB" ${{ env.KEY_ALIAS }}
+          jarsigner -verify -verbose "$AAB" 2>&1 | grep -E "signed|digest|cert|Warning" || true
+
+      - name: Sign APK with release keystore
+        working-directory: source apk/android
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
+          echo "APK: $APK"
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore app/ligat-release.keystore \
+            -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
+            "$APK" ${{ env.KEY_ALIAS }}
+          jarsigner -verify -verbose "$APK" 2>&1 | grep -E "signed|digest|cert|Warning" || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
