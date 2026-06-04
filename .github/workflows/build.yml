@@ -1,7 +1,17 @@
-name: Build Ligat APK
+name: Build Ligat APK + AAB (Production)
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label (opsional, misal: 1.3.0)'
+        type: string
+        default: ''
+
+env:
+  KEYSTORE_PASSWORD: ligat2026
+  KEY_ALIAS: ligat
+  KEY_PASSWORD: ligat2026
 
 jobs:
   build:
@@ -25,13 +35,6 @@ jobs:
         working-directory: source apk
         run: npm ci
 
-      - name: Export Android bundle
-        working-directory: source apk
-        run: npx expo export --platform android
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -39,40 +42,64 @@ jobs:
           key: gradle-${{ hashFiles('source apk/android/**/*.gradle*') }}
           restore-keys: gradle-
 
-      - name: Generate release keystore & Build APK + AAB
+      - name: Prebuild Android project
         working-directory: source apk
+        run: npx expo prebuild --platform android --clean
+
+      - name: Setup keystore
+        working-directory: source apk/android
         run: |
-          npx expo prebuild --platform android --clean
-          cd android
-          # Generate release keystore baru
-          keytool -genkey -v -keystore app/ligat-release.keystore -alias ligat \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass ligat2026 -keypass ligat2026 \
-            -dname "CN=Ligat, OU=Development, O=Ligat, L=Jakarta, ST=Jakarta, C=ID"
-          # Tambah release signing + ganti debug ke release di build.gradle
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            # Reuse existing keystore from GitHub Secrets
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/ligat-release.keystore
+            echo "Using keystore from GitHub Secrets"
+          else
+            # Generate new keystore (first run only)
+            keytool -genkey -v -keystore app/ligat-release.keystore -alias ${{ env.KEY_ALIAS }} \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
+              -dname "CN=Ligat, OU=Development, O=Ligat, L=Jakarta, ST=Jakarta, C=ID"
+            echo "Generated new keystore (valid 10000 days)"
+          fi
+
+      - name: Configure release signing in build.gradle
+        working-directory: source apk/android
+        run: |
           python3 -c "
 import re
 with open('app/build.gradle') as f:
     c = f.read()
-# Tambah release signing config setelah signingConfigs {
-c = c.replace('signingConfigs {', 'signingConfigs {\n        release {\n            storeFile file(\"app/ligat-release.keystore\")\n            storePassword \"ligat2026\"\n            keyAlias \"ligat\"\n            keyPassword \"ligat2026\"\n        }')
-# Ganti signingConfig di release build type dari debug ke release
+# Add release signing config
+c = c.replace('signingConfigs {', 'signingConfigs {\n        release {\n            storeFile file(\"app/ligat-release.keystore\")\n            storePassword \"${{ env.KEYSTORE_PASSWORD }}\"\n            keyAlias \"${{ env.KEY_ALIAS }}\"\n            keyPassword \"${{ env.KEY_PASSWORD }}\"\n        }')
+# Switch release build type from debug to release signing
 c = c.replace('release {\n            signingConfig signingConfigs.debug', 'release {\n            signingConfig signingConfigs.release')
 with open('app/build.gradle', 'w') as f:
     f.write(c)
 "
-          ./gradlew assembleRelease
-          ./gradlew bundleRelease
+          echo "=== build.gradle signing config ==="
+          grep -A 10 'signingConfigs {' app/build.gradle
 
-      - name: Upload artifacts
+      - name: Build Release APK
+        working-directory: source apk/android
+        run: ./gradlew assembleRelease
+
+      - name: Build Release AAB
+        working-directory: source apk/android
+        run: ./gradlew bundleRelease
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Ligat-Production
-          path: |
-            source apk/android/app/build/outputs/apk/release/*.apk
-            source apk/android/app/build/outputs/bundle/release/*.aab
+          name: Ligat-APK-${{ inputs.version && format('v{0}', inputs.version) || github.run_number }}
+          path: source apk/android/app/build/outputs/apk/release/*.apk
 
-      - name: Upload release keystore (save for future builds)
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ligat-AAB-${{ inputs.version && format('v{0}', inputs.version) || github.run_number }}
+          path: source apk/android/app/build/outputs/bundle/release/*.aab
+
+      - name: Upload keystore (download & save for future builds)
         uses: actions/upload-artifact@v4
         with:
           name: ligat-release-keystore
