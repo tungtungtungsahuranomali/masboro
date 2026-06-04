@@ -69,22 +69,22 @@ jobs:
         run: |
           AAB=$(find app/build/outputs/bundle/release -name "*.aab" 2>/dev/null | head -1)
           echo "AAB: $AAB"
+          zip -d "$AAB" "META-INF/ANDROIDD.*" 2>/dev/null || true
           jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
             -keystore app/ligat-release.keystore \
             -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
             "$AAB" ${{ env.KEY_ALIAS }}
-          jarsigner -verify -verbose "$AAB" 2>&1 | grep -E "signed|digest|cert|Warning" || true
 
       - name: Sign APK with release keystore
         working-directory: source apk/android
         run: |
           APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
           echo "APK: $APK"
+          zip -d "$APK" "META-INF/ANDROIDD.*" 2>/dev/null || true
           jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
             -keystore app/ligat-release.keystore \
             -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
             "$APK" ${{ env.KEY_ALIAS }}
-          jarsigner -verify -verbose "$APK" 2>&1 | grep -E "signed|digest|cert|Warning" || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
