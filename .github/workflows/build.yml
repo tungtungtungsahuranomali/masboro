@@ -49,16 +49,20 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass ligat2026 -keypass ligat2026 \
             -dname "CN=Ligat, OU=Development, O=Ligat, L=Jakarta, ST=Jakarta, C=ID"
-          ./gradlew assembleRelease \
-            -PRELEASE_STORE_FILE=app/ligat-release.keystore \
-            -PRELEASE_STORE_PASSWORD=ligat2026 \
-            -PRELEASE_KEY_ALIAS=ligat \
-            -PRELEASE_KEY_PASSWORD=ligat2026
-          ./gradlew bundleRelease \
-            -PRELEASE_STORE_FILE=app/ligat-release.keystore \
-            -PRELEASE_STORE_PASSWORD=ligat2026 \
-            -PRELEASE_KEY_ALIAS=ligat \
-            -PRELEASE_KEY_PASSWORD=ligat2026
+          # Tambah release signing + ganti debug ke release di build.gradle
+          python3 -c "
+import re
+with open('app/build.gradle') as f:
+    c = f.read()
+# Tambah release signing config setelah signingConfigs {
+c = c.replace('signingConfigs {', 'signingConfigs {\n        release {\n            storeFile file(\"app/ligat-release.keystore\")\n            storePassword \"ligat2026\"\n            keyAlias \"ligat\"\n            keyPassword \"ligat2026\"\n        }')
+# Ganti signingConfig di release build type dari debug ke release
+c = c.replace('release {\n            signingConfig signingConfigs.debug', 'release {\n            signingConfig signingConfigs.release')
+with open('app/build.gradle', 'w') as f:
+    f.write(c)
+"
+          ./gradlew assembleRelease
+          ./gradlew bundleRelease
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
