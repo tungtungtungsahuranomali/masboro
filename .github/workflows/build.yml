@@ -60,25 +60,55 @@ jobs:
             echo "Generated new keystore (valid 10000 days)"
           fi
 
-      - name: Build Release APK
+      - name: Build APK (unsigned)
         working-directory: source apk/android
-        run: |
-          KS="${{ github.workspace }}/source apk/android/app/ligat-release.keystore"
-          ./gradlew assembleRelease \
-            -PRELEASE_STORE_FILE="$KS" \
-            -PRELEASE_STORE_PASSWORD=${{ env.KEYSTORE_PASSWORD }} \
-            -PRELEASE_KEY_ALIAS=${{ env.KEY_ALIAS }} \
-            -PRELEASE_KEY_PASSWORD=${{ env.KEY_PASSWORD }}
+        run: ANDROID_SDK_ROOT=/usr/local/lib/android/sdk ./gradlew assembleRelease
 
-      - name: Build Release AAB
+      - name: Build AAB (unsigned)
+        working-directory: source apk/android
+        run: ANDROID_SDK_ROOT=/usr/local/lib/android/sdk ./gradlew bundleRelease
+
+      - name: Sign APK + AAB with release keystore
         working-directory: source apk/android
         run: |
-          KS="${{ github.workspace }}/source apk/android/app/ligat-release.keystore"
-          ./gradlew bundleRelease \
-            -PRELEASE_STORE_FILE="$KS" \
-            -PRELEASE_STORE_PASSWORD=${{ env.KEYSTORE_PASSWORD }} \
-            -PRELEASE_KEY_ALIAS=${{ env.KEY_ALIAS }} \
-            -PRELEASE_KEY_PASSWORD=${{ env.KEY_PASSWORD }}
+          KS="app/ligat-release.keystore"
+          
+          # Find apksigner
+          APKSIGNER=$(find /usr/local/lib/android/sdk -name apksigner 2>/dev/null | head -1)
+          if [ -z "$APKSIGNER" ]; then
+            # Try ANDROID_HOME
+            APKSIGNER=$(find $ANDROID_HOME -name apksigner 2>/dev/null | head -1)
+          fi
+          if [ -z "$APKSIGNER" ]; then
+            # Try default Ubuntu location
+            APKSIGNER=$(find / -name apksigner -type f 2>/dev/null | head -1)
+          fi
+          echo "apksigner: $APKSIGNER"
+          
+          if [ -z "$APKSIGNER" ]; then
+            echo "ERROR: apksigner not found! Using jarsigner instead."
+            JARSIGNER="jarsigner"
+            APK=$(ls app/build/outputs/apk/release/*.apk 2>/dev/null | head -1)
+            AAB=$(ls app/build/outputs/bundle/release/*.aab 2>/dev/null | head -1)
+            [ -n "$APK" ] && $JARSIGNER -sigalg SHA256withRSA -digestalg SHA-256 \
+              -keystore "$KS" -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
+              "$APK" ${{ env.KEY_ALIAS }}
+            [ -n "$AAB" ] && $JARSIGNER -sigalg SHA256withRSA -digestalg SHA-256 \
+              -keystore "$KS" -storepass ${{ env.KEYSTORE_PASSWORD }} -keypass ${{ env.KEY_PASSWORD }} \
+              "$AAB" ${{ env.KEY_ALIAS }}
+          else
+            APK=$(ls app/build/outputs/apk/release/*.apk 2>/dev/null | head -1)
+            AAB=$(ls app/build/outputs/bundle/release/*.aab 2>/dev/null | head -1)
+            [ -n "$APK" ] && $APKSIGNER sign --ks "$KS" --ks-pass pass:${{ env.KEYSTORE_PASSWORD }} \
+              --ks-key-alias ${{ env.KEY_ALIAS }} --key-pass pass:${{ env.KEY_PASSWORD }} \
+              --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true "$APK"
+            [ -n "$AAB" ] && $APKSIGNER sign --ks "$KS" --ks-pass pass:${{ env.KEYSTORE_PASSWORD }} \
+              --ks-key-alias ${{ env.KEY_ALIAS }} --key-pass pass:${{ env.KEY_PASSWORD }} \
+              --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true "$AAB"
+          fi
+          echo "=== Verifikasi ==="
+          [ -n "$APK" ] && $JAVA_HOME/bin/jarsigner -verify -verbose "$APK" 2>&1 | grep -E "jar signed|Warning" || true
+          [ -n "$AAB" ] && $JAVA_HOME/bin/jarsigner -verify -verbose "$AAB" 2>&1 | grep -E "jar signed|Warning" || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
