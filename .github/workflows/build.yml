@@ -63,8 +63,9 @@ jobs:
       - name: Build Release APK
         working-directory: source apk/android
         run: |
+          KS="${{ github.workspace }}/source apk/android/app/ligat-release.keystore"
           ./gradlew assembleRelease \
-            -PRELEASE_STORE_FILE=ligat-release.keystore \
+            -PRELEASE_STORE_FILE="$KS" \
             -PRELEASE_STORE_PASSWORD=${{ env.KEYSTORE_PASSWORD }} \
             -PRELEASE_KEY_ALIAS=${{ env.KEY_ALIAS }} \
             -PRELEASE_KEY_PASSWORD=${{ env.KEY_PASSWORD }}
@@ -72,8 +73,9 @@ jobs:
       - name: Build Release AAB
         working-directory: source apk/android
         run: |
+          KS="${{ github.workspace }}/source apk/android/app/ligat-release.keystore"
           ./gradlew bundleRelease \
-            -PRELEASE_STORE_FILE=ligat-release.keystore \
+            -PRELEASE_STORE_FILE="$KS" \
             -PRELEASE_STORE_PASSWORD=${{ env.KEYSTORE_PASSWORD }} \
             -PRELEASE_KEY_ALIAS=${{ env.KEY_ALIAS }} \
             -PRELEASE_KEY_PASSWORD=${{ env.KEY_PASSWORD }}
