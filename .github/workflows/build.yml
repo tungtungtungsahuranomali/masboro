@@ -66,16 +66,14 @@ jobs:
         working-directory: source apk/android
         run: |
           python3 -c "
-import re
-with open('app/build.gradle') as f:
-    c = f.read()
-# Add release signing config
-c = c.replace('signingConfigs {', 'signingConfigs {\n        release {\n            storeFile file(\"app/ligat-release.keystore\")\n            storePassword \"${{ env.KEYSTORE_PASSWORD }}\"\n            keyAlias \"${{ env.KEY_ALIAS }}\"\n            keyPassword \"${{ env.KEY_PASSWORD }}\"\n        }')
-# Switch release build type from debug to release signing
-c = c.replace('release {\n            signingConfig signingConfigs.debug', 'release {\n            signingConfig signingConfigs.release')
-with open('app/build.gradle', 'w') as f:
-    f.write(c)
-"
+          import re
+          with open('app/build.gradle') as f:
+              c = f.read()
+          c = c.replace('signingConfigs {', 'signingConfigs {\n        release {\n            storeFile file(\"app/ligat-release.keystore\")\n            storePassword \"${{ env.KEYSTORE_PASSWORD }}\"\n            keyAlias \"${{ env.KEY_ALIAS }}\"\n            keyPassword \"${{ env.KEY_PASSWORD }}\"\n        }')
+          c = c.replace('release {\n            signingConfig signingConfigs.debug', 'release {\n            signingConfig signingConfigs.release')
+          with open('app/build.gradle', 'w') as f:
+              f.write(c)
+          "
           echo "=== build.gradle signing config ==="
           grep -A 10 'signingConfigs {' app/build.gradle
 
