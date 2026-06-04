@@ -62,20 +62,19 @@ jobs:
             echo "Generated new keystore (valid 10000 days)"
           fi
 
-      - name: Configure release signing in build.gradle
+      - name: Configure release signing
         working-directory: source apk/android
         run: |
-          python3 -c "
-          import re
-          with open('app/build.gradle') as f:
-              c = f.read()
-          c = c.replace('signingConfigs {', 'signingConfigs {\n        release {\n            storeFile file(\"app/ligat-release.keystore\")\n            storePassword \"${{ env.KEYSTORE_PASSWORD }}\"\n            keyAlias \"${{ env.KEY_ALIAS }}\"\n            keyPassword \"${{ env.KEY_PASSWORD }}\"\n        }')
-          c = c.replace('release {\n            signingConfig signingConfigs.debug', 'release {\n            signingConfig signingConfigs.release')
-          with open('app/build.gradle', 'w') as f:
-              f.write(c)
-          "
-          echo "=== build.gradle signing config ==="
-          grep -A 10 'signingConfigs {' app/build.gradle
+          cat >> gradle.properties << EOF
+
+          # Release signing config (used by app/build.gradle signingConfigs.release)
+          RELEASE_STORE_FILE=app/ligat-release.keystore
+          RELEASE_STORE_PASSWORD=${{ env.KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS=${{ env.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD=${{ env.KEY_PASSWORD }}
+          EOF
+          echo "=== gradle.properties (release signing) ==="
+          grep -A 5 'RELEASE_STORE' gradle.properties
 
       - name: Build Release APK
         working-directory: source apk/android

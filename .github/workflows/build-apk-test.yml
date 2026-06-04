@@ -72,6 +72,26 @@ jobs:
           python3 -c "with open('app/build.gradle') as f: c=f.read(); c=c.replace('react {','react {\n    debuggableVariants = []',1); open('app/build.gradle','w').write(c)"
           grep debuggable app/build.gradle
 
+      - name: Configure release signing (if release build)
+        if: inputs.build-type == 'release'
+        working-directory: source apk/android
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/ligat-release.keystore
+            echo "Using keystore from GitHub Secrets"
+          else
+            echo "WARNING: No KEYSTORE_BASE64 secret set! AAB will use debug signing."
+          fi
+          cat >> gradle.properties << EOF
+
+          # Release signing config
+          RELEASE_STORE_FILE=app/ligat-release.keystore
+          RELEASE_STORE_PASSWORD=ligat2026
+          RELEASE_KEY_ALIAS=ligat
+          RELEASE_KEY_PASSWORD=ligat2026
+          EOF
+          echo "Release signing configured"
+
       - name: Build ${{ inputs.build-type == 'release' && 'Release' || 'Debug' }} APK & AAB
         working-directory: source apk/android
         run: |
