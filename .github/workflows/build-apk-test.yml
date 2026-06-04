@@ -85,7 +85,7 @@ jobs:
           cat >> gradle.properties << EOF
 
           # Release signing config
-          RELEASE_STORE_FILE=app/ligat-release.keystore
+          RELEASE_STORE_FILE=ligat-release.keystore
           RELEASE_STORE_PASSWORD=ligat2026
           RELEASE_KEY_ALIAS=ligat
           RELEASE_KEY_PASSWORD=ligat2026

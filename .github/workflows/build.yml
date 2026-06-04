@@ -68,7 +68,7 @@ jobs:
           cat >> gradle.properties << EOF
 
           # Release signing config (used by app/build.gradle signingConfigs.release)
-          RELEASE_STORE_FILE=app/ligat-release.keystore
+          RELEASE_STORE_FILE=ligat-release.keystore
           RELEASE_STORE_PASSWORD=${{ env.KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS=${{ env.KEY_ALIAS }}
           RELEASE_KEY_PASSWORD=${{ env.KEY_PASSWORD }}
