@@ -60,19 +60,23 @@ jobs:
             echo "Generated new keystore (valid 10000 days)"
           fi
 
-      - name: Configure release signing
-        working-directory: source apk/android
-        run: |
-          echo 'aW1wb3J0IHJlCndpdGggb3BlbignYXBwL2J1aWxkLmdyYWRsZScpIGFzIGY6CiAgICBjID0gZi5yZWFkKCkKCm9sZCA9ICcnJyAgICAgICAgcmVsZWFzZSB7CiAgICAgICAgICAgIGlmIChwcm9qZWN0Lmhhc1Byb3BlcnR5KCdSRUxFQVNFX1NUT1JFX0ZJTEUnKSAmJiBmaWxlKFJFTEVBU0VfU1RPUkVfRklMRSkuZXhpc3RzKCkpIHsKICAgICAgICAgICAgICAgIHN0b3JlRmlsZSBmaWxlKFJFTEVBU0VfU1RPUkVfRklMRSkKICAgICAgICAgICAgICAgIHN0b3JlUGFzc3dvcmQgUkVMRUFTRV9TVE9SRV9QQVNTV09SRAogICAgICAgICAgICAgICAga2V5QWxpYXMgUkVMRUFTRV9LRVlfQUxJQVMKICAgICAgICAgICAgICAgIGtleVBhc3N3b3JkIFJFTEVBU0VfS0VZX1BBU1NXT1JECiAgICAgICAgICAgIH0KICAgICAgICB9JycnCm5ldyA9ICcnJyAgICAgICAgcmVsZWFzZSB7CiAgICAgICAgICAgIHN0b3JlRmlsZSBmaWxlKCdsaWdhdC1yZWxlYXNlLmtleXN0b3JlJykKICAgICAgICAgICAgc3RvcmVQYXNzd29yZCAnbGlnYXQyMDI2JwogICAgICAgICAgICBrZXlBbGlhcyAnbGlnYXQnCiAgICAgICAgICAgIGtleVBhc3N3b3JkICdsaWdhdDIwMjYnCiAgICAgICAgfScnJwpjID0gYy5yZXBsYWNlKG9sZCwgbmV3KQp3aXRoIG9wZW4oJ2FwcC9idWlsZC5ncmFkbGUnLCAndycpIGFzIGY6CiAgICBmLndyaXRlKGMpCnByaW50KCdzaWduaW5nQ29uZmlncy5yZWxlYXNlIGhhcmRjb2RlZCEnKQo=' | base64 -d | python3
-          grep -A 5 'release {' app/build.gradle | head -8
-
       - name: Build Release APK
         working-directory: source apk/android
-        run: ./gradlew assembleRelease
+        run: |
+          ./gradlew assembleRelease \
+            -PRELEASE_STORE_FILE=ligat-release.keystore \
+            -PRELEASE_STORE_PASSWORD=${{ env.KEYSTORE_PASSWORD }} \
+            -PRELEASE_KEY_ALIAS=${{ env.KEY_ALIAS }} \
+            -PRELEASE_KEY_PASSWORD=${{ env.KEY_PASSWORD }}
 
       - name: Build Release AAB
         working-directory: source apk/android
-        run: ./gradlew bundleRelease
+        run: |
+          ./gradlew bundleRelease \
+            -PRELEASE_STORE_FILE=ligat-release.keystore \
+            -PRELEASE_STORE_PASSWORD=${{ env.KEYSTORE_PASSWORD }} \
+            -PRELEASE_KEY_ALIAS=${{ env.KEY_ALIAS }} \
+            -PRELEASE_KEY_PASSWORD=${{ env.KEY_PASSWORD }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
